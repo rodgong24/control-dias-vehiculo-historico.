@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control Días Vehículo Histórico</title>
+    <style>
+        /* --- Variables y Estilos Globales --- */
+        :root {
+            --primary-color: #00425a;
+            --secondary-color: #1a659e;
+            --accent-color: #ff5a1f;
+            --background-color: #f4f4f9;
+            --card-background: #ffffff;
+            --text-color: #333;
+            --light-text: #666;
+            --border-color: #ddd;
+            --shadow: 0 4px 8px rgba(0,0,0,0.1);
+            --shadow-hover: 0 8px 16px rgba(0,0,0,0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* --- Header --- */
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .user-info span {
+            font-weight: bold;
+        }
+
+        /* --- Main Content --- */
+        main {
+            flex-grow: 1;
+            padding: 2rem;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* --- Auth Screen --- */
+        #auth-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            height: 60vh;
+        }
+        
+        #auth-screen form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            width: 280px;
+        }
+
+        #auth-screen input {
+            padding: 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        #auth-screen .button-group {
+            display: flex;
+            gap: 1rem;
+        }
+        #auth-screen button {
+            flex-grow: 1;
+            padding: 0.8rem;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        #auth-screen button:hover {
+            background-color: var(--accent-color);
+        }
+        #auth-error {
+            color: var(--accent-color);
+            margin-top: 1rem;
+            min-height: 1.2em;
+        }
+
+        /* --- App Screen --- */
+        #app-screen {
+            display: none; /* Hidden by default */
+        }
+
+        .section-title {
+            margin-bottom: 1.5rem;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 0.5rem;
+        }
+
+        /* --- Vehicle List --- */
+        #vehicle-list {
+            list-style: none;
+            margin-bottom: 2rem;
+        }
+
+        .vehicle-item {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .vehicle-item:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-2px);
+        }
+
+        .vehicle-item.selected {
+            border-color: var(--secondary-color);
+            background-color: #e6f3ff;
+        }
+
+        .vehicle-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .vehicle-counter {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--secondary-color);
+        }
+
+        .vehicle-counter.limit-reached {
+            color: var(--accent-color);
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        /* --- Vehicle Detail --- */
+        #vehicle-detail {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            display: none; /* Hidden by default */
+        }
+
+        #vehicle-detail h2 {
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+
+        #usage-list {
+            list-style: none;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .usage-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+        }
+        .usage-item:last-child {
+            border-bottom: none;
+        }
+
+        /* --- Action Buttons --- */
+        .action-buttons {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: var(--primary-color);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-around;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+
+        .action-buttons button {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.2rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+
+        .action-buttons button:hover {
+            background-color: var(--accent-color);
+        }
+
+        /* --- Modal --- */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.5);
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background-color: var(--card-background);
+            margin: 15% auto;
+            padding: 2rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: var(--shadow-hover);
+            animation: slideIn 0.3s;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateY(-50px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .close {
+            color: #aaa;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .close:hover { color: var(--text-color); }
+
+        .modal-body input, .modal-body select {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+        }
+        
+        .modal-body button {
+            width: 100%;
+            padding: 0.8rem;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        .modal-body button:hover {
+            background-color: var(--accent-color);
+        }
+
+        /* --- Alert Box --- */
+        .alert-box {
+            position: fixed;
+            top: 80px;
+            right: 20px;
+            background-color: var(--accent-color);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 5px;
+            box-shadow: var(--shadow-hover);
+            z-index: 2000;
+            display: none;
+            animation: slideInRight 0.5s;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Control Días Vehículo Histórico</h1>
+        <div class="user-info" id="user-info" style="display: none;">
+            <span id="user-name-display"></span>
+            <button id="logout-btn">Cerrar Sesión</button>
+        </div>
+    </header>
+
+    <main>
+        <!-- Auth Screen -->
+        <section id="auth-screen">
+            <h2>Bienvenido</h2>
+            <p>Introduce tus credenciales para acceder o regístrate</p>
+            <form id="auth-form">
+                <input type="text" id="username-input" placeholder="Usuario" required>
+                <input type="password" id="password-input" placeholder="Contraseña" required>
+                <div class="button-group">
+                    <button type="button" id="login-btn">Iniciar Sesión</button>
+                    <button type="button" id="register-btn">Registrarse</button>
+                </div>
+            </form>
+            <div id="auth-error"></div>
+        </section>
+
+        <!-- App Screen -->
+        <section id="app-screen">
+            <h2 class="section-title">Mis Vehículos</h2>
+            <ul id="vehicle-list">
+                <!-- Vehicle items will be inserted here -->
+            </ul>
+
+            <div id="vehicle-detail">
+                <h2 id="detail-vehicle-name"></h2>
+                <p>Días de uso: <span id="detail-usage-count" class="vehicle-counter">0</span></p>
+                <h3>Historial de Uso:</h3>
+                <ul id="usage-list">
+                    <!-- Usage records will be inserted here -->
+                </ul>
+            </div>
+        </section>
+    </main>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons" id="action-buttons" style="display: none;">
+        <button id="add-vehicle-btn">+ Añadir Vehículo</button>
+        <button id="use-today-btn">Usar Hoy</button>
+        <button id="use-date-btn">Usar Fecha Pasada</button>
+        <button id="share-vehicle-btn">Compartir Vehículo</button>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Título</h3>
+                <span class="close">&times;</span>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- Dynamic content -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Alert Box -->
+    <div id="alert-box" class="alert-box"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- GLOBAL DATABASE & STATE ---
+            // The 'db' object is our single source of truth, stored in localStorage.
+            // It holds all users, all vehicles, and all usage records.
+            const DB_KEY = 'vehicleAppDB';
+            let db = {
+                users: {},
+                vehicles: {},
+                usageRecords: []
+            };
+            
+            let state = {
+                user: null,
+                vehicles: [], // This is a filtered list of vehicles the current user can see
+                usageRecords: [], // This is a filtered list of records for the visible vehicles
+                selectedVehicleId: null
+            };
+
+            // --- DOM ELEMENTS ---
+            const authScreen = document.getElementById('auth-screen');
+            const appScreen = document.getElementById('app-screen');
+            const authForm = document.getElementById('auth-form');
+            const authError = document.getElementById('auth-error');
+            const usernameInput = document.getElementById('username-input');
+            const passwordInput = document.getElementById('password-input');
+            const loginBtn = document.getElementById('login-btn');
+            const registerBtn = document.getElementById('register-btn');
+            const userInfo = document.getElementById('user-info');
+            const userNameDisplay = document.getElementById('user-name-display');
+            const logoutBtn = document.getElementById('logout-btn');
+            const actionButtons = document.getElementById('action-buttons');
+            const vehicleList = document.getElementById('vehicle-list');
+            const vehicleDetail = document.getElementById('vehicle-detail');
+            const detailVehicleName = document.getElementById('detail-vehicle-name');
+            const detailUsageCount = document.getElementById('detail-usage-count');
+            const usageList = document.getElementById('usage-list');
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const alertBox = document.getElementById('alert-box');
+
+            // --- CORE DATA & AUTH FUNCTIONS ---
+            const loadDatabase = () => {
+                const storedDB = localStorage.getItem(DB_KEY);
+                if (storedDB) {
+                    db = JSON.parse(storedDB);
+                }
+            };
+
+            const saveDatabase = () => {
+                localStorage.setItem(DB_KEY, JSON.stringify(db));
+            };
+            
+            const hashPassword = (password) => btoa(password);
+
+            const showAuthError = (message) => {
+                authError.textContent = message;
+            };
+
+            const clearAuthError = () => {
+                authError.textContent = '';
+            };
+
+            const register = (username, password) => {
+                clearAuthError();
+                if (db.users[username]) {
+                    showAuthError('El nombre de usuario ya existe.');
+                    return;
+                }
+                db.users[username] = { hashedPassword: hashPassword(password) };
+                saveDatabase();
+                login(username, password);
+            };
+
+            const login = (username, password) => {
+                clearAuthError();
+                const user = db.users[username];
+                if (!user || user.hashedPassword !== hashPassword(password)) {
+                    showAuthError('Usuario o contraseña incorrectos.');
+                    return;
+                }
+                state.user = username;
+                loadUserAccessibleData();
+                render();
+            };
+
+            const logout = () => {
+                state.user = null;
+                state.vehicles = [];
+                state.usageRecords = [];
+                state.selectedVehicleId = null;
+                render();
+            };
+            
+            // This function populates the 'state' with data the current user is allowed to see
+            const loadUserAccessibleData = () => {
+                state.vehicles = Object.values(db.vehicles).filter(v => 
+                    v.ownerId === state.user || (v.sharedWith && v.sharedWith.includes(state.user))
+                );
+                const accessibleVehicleIds = new Set(state.vehicles.map(v => v.id));
+                state.usageRecords = db.usageRecords.filter(r => accessibleVehicleIds.has(r.vehicleId));
+            };
+
+            // --- RENDER FUNCTIONS ---
+            const render = () => {
+                if (state.user) {
+                    showApp();
+                    renderVehicleList();
+                    renderVehicleDetail();
+                } else {
+                    showAuth();
+                }
+            };
+
+            const showAuth = () => {
+                authScreen.style.display = 'flex';
+                appScreen.style.display = 'none';
+                userInfo.style.display = 'none';
+                actionButtons.style.display = 'none';
+                clearAuthError();
+            };
+
+            const showApp = () => {
+                authScreen.style.display = 'none';
+                appScreen.style.display = 'block';
+                userInfo.style.display = 'flex';
+                actionButtons.style.display = 'flex';
+                userNameDisplay.textContent = state.user;
+            };
+
+            const renderVehicleList = () => {
+                vehicleList.innerHTML = '';
+                if (state.vehicles.length === 0) {
+                    vehicleList.innerHTML = '<li>No tienes vehículos. ¡Añade uno o espera a que te compartan uno!</li>';
+                    return;
+                }
+                state.vehicles.forEach(vehicle => {
+                    const count = getUsageCount(vehicle.id);
+                    const isOwner = vehicle.ownerId === state.user;
+                    const li = document.createElement('li');
+                    li.className = 'vehicle-item';
+                    if (vehicle.id === state.selectedVehicleId) {
+                        li.classList.add('selected');
+                    }
+                    li.innerHTML = `
+                        <span class="vehicle-name">${vehicle.name} ${!isOwner ? '👥' : ''}</span>
+                        <span class="vehicle-counter ${count >= 90 ? 'limit-reached' : ''}">${count} días</span>
+                    `;
+                    li.addEventListener('click', () => selectVehicle(vehicle.id));
+                    vehicleList.appendChild(li);
+                });
+            };
+
+            const renderVehicleDetail = () => {
+                if (!state.selectedVehicleId) {
+                    vehicleDetail.style.display = 'none';
+                    return;
+                }
+                const vehicle = state.vehicles.find(v => v.id === state.selectedVehicleId);
+                if (!vehicle) return;
+
+                vehicleDetail.style.display = 'block';
+                detailVehicleName.textContent = vehicle.name;
+                
+                const records = getUsageRecords(state.selectedVehicleId);
+                detailUsageCount.textContent = records.length;
+                detailUsageCount.className = `vehicle-counter ${records.length >= 90 ? 'limit-reached' : ''}`;
+
+                usageList.innerHTML = '';
+                if (records.length === 0) {
+                    usageList.innerHTML = '<li>No hay registros de uso para este vehículo.</li>';
+                } else {
+                    records.sort((a,b) => new Date(b.date) - new Date(a.date));
+                    records.forEach(record => {
+                        const li = document.createElement('li');
+                        li.className = 'usage-item';
+                        const date = new Date(record.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                        li.innerHTML = `<span>${date}</span><span>Usado por: <strong>${record.usedBy}</strong></span>`;
+                        usageList.appendChild(li);
+                    });
+                }
+            };
+            
+            // --- LOGIC FUNCTIONS ---
+            const getUsageCount = (vehicleId) => {
+                return db.usageRecords.filter(r => r.vehicleId === vehicleId).length;
+            };
+
+            const getUsageRecords = (vehicleId) => {
+                return db.usageRecords.filter(r => r.vehicleId === vehicleId);
+            };
+
+            const showAlert = (message) => {
+                alertBox.textContent = message;
+                alertBox.style.display = 'block';
+                setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
+            };
+            
+            // Check for duplicates against the GLOBAL usage records list
+            const hasUsageOnDate = (vehicleId, dateToCheck) => {
+                const dateStringToCheck = new Date(dateToCheck).toISOString().split('T')[0];
+                return db.usageRecords.some(record => {
+                    if (record.vehicleId !== vehicleId) return false;
+                    const recordDateString = new Date(record.date).toISOString().split('T')[0];
+                    return recordDateString === dateStringToCheck;
+                });
+            };
+
+            // --- ACTION HANDLERS ---
+            const selectVehicle = (id) => {
+                state.selectedVehicleId = id;
+                render();
+            };
+
+            const addVehicle = (name) => {
+                if (!name) return;
+                const newVehicle = {
+                    id: Date.now().toString(),
+                    name: name,
+                    ownerId: state.user,
+                    sharedWith: []
+                };
+                db.vehicles[newVehicle.id] = newVehicle;
+                saveDatabase();
+                loadUserAccessibleData(); // Refresh the user's view
+                render();
+            };
+
+            const markUsage = (vehicleId, date) => {
+                if (hasUsageOnDate(vehicleId, date)) {
+                    const vehicleName = db.vehicles[vehicleId].name;
+                    const formattedDate = new Date(date).toLocaleDateString('es-ES');
+                    showAlert(`El vehículo "${vehicleName}" ya tiene un registro de uso para el día ${formattedDate}.`);
+                    return false;
+                }
+
+                const newRecord = {
+                    id: Date.now().toString(),
+                    vehicleId: vehicleId,
+                    date: date.toISOString(),
+                    usedBy: state.user
+                };
+                db.usageRecords.push(newRecord);
+                saveDatabase();
+                loadUserAccessibleData(); // Refresh all users' views
+                render();
+                
+                const count = getUsageCount(vehicleId);
+                if (count === 90) {
+                    showAlert("Se acerca al límite de uso (90 días)");
+                } else if (count === 96) {
+                    showAlert("Límite de uso alcanzado (96 días)");
+                }
+                return true;
+            };
+            
+            // --- MODAL LOGIC ---
+            const openModal = (title, content) => {
+                modalTitle.textContent = title;
+                modalBody.innerHTML = content;
+                modal.style.display = 'block';
+            };
+
+            const closeModal = () => {
+                modal.style.display = 'none';
+            };
+
+            // --- EVENT LISTENERS ---
+            authForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                login(usernameInput.value, passwordInput.value);
+            });
+
+            loginBtn.addEventListener('click', () => login(usernameInput.value, passwordInput.value));
+            registerBtn.addEventListener('click', () => register(usernameInput.value, passwordInput.value));
+            logoutBtn.addEventListener('click', logout);
+            
+            window.onclick = (event) => { if (event.target === modal) closeModal(); };
+            document.querySelector('.close').onclick = closeModal;
+
+            document.getElementById('add-vehicle-btn').addEventListener('click', () => {
+                openModal('Añadir Nuevo Vehículo', `
+                    <input type="text" id="new-vehicle-name" placeholder="Nombre del vehículo">
+                    <button id="confirm-add-vehicle">Añadir</button>
+                `);
+                document.getElementById('confirm-add-vehicle').addEventListener('click', () => {
+                    const name = document.getElementById('new-vehicle-name').value.trim();
+                    if(name) {
+                        addVehicle(name);
+                        closeModal();
+                    }
+                });
+            });
+
+            document.getElementById('use-today-btn').addEventListener('click', () => {
+                if (state.vehicles.length === 0) { alert("Debes añadir un vehículo primero."); return; }
+                const options = state.vehicles.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+                openModal('Usar Vehículo Hoy', `
+                    <p>Selecciona el vehículo que has usado hoy:</p>
+                    <select id="use-today-select">${options}</select>
+                    <button id="confirm-use-today">Marcar Uso</button>
+                `);
+                document.getElementById('confirm-use-today').addEventListener('click', () => {
+                    const vehicleId = document.getElementById('use-today-select').value;
+                    if (markUsage(vehicleId, new Date())) closeModal();
+                });
+            });
+
+            document.getElementById('use-date-btn').addEventListener('click', () => {
+                if (state.vehicles.length === 0) { alert("Debes añadir un vehículo primero."); return; }
+                const options = state.vehicles.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+                openModal('Usar Vehículo en Fecha Pasada', `
+                    <p>Selecciona el vehículo y la fecha:</p>
+                    <select id="use-date-select">${options}</select>
+                    <input type="date" id="use-date-input">
+                    <button id="confirm-use-date">Marcar Uso</button>
+                `);
+                document.getElementById('confirm-use-date').addEventListener('click', () => {
+                    const vehicleId = document.getElementById('use-date-select').value;
+                    const dateStr = document.getElementById('use-date-input').value;
+                    if(dateStr) {
+                        if (markUsage(vehicleId, new Date(dateStr))) closeModal();
+                    } else {
+                        alert("Por favor, selecciona una fecha.");
+                    }
+                });
+            });
+
+            document.getElementById('share-vehicle-btn').addEventListener('click', () => {
+                if (!state.selectedVehicleId) {
+                    alert("Por favor, selecciona un vehículo para compartir.");
+                    return;
+                }
+                const vehicle = db.vehicles[state.selectedVehicleId];
+                if (vehicle.ownerId !== state.user) {
+                    alert("Solo el propietario del vehículo puede compartirlo.");
+                    return;
+                }
+                openModal(`Compartir "${vehicle.name}"`, `
+                    <p>Introduce el nombre de usuario con quien quieres compartir este vehículo:</p>
+                    <input type="text" id="share-username-input" placeholder="Nombre de usuario">
+                    <button id="confirm-share">Compartir</button>
+                `);
+                document.getElementById('confirm-share').addEventListener('click', () => {
+                    const targetUsername = document.getElementById('share-username-input').value.trim();
+                    if (!targetUsername) { alert("Introduce un nombre de usuario."); return; }
+                    if (!db.users[targetUsername]) { alert("Ese usuario no existe."); return; }
+                    if (targetUsername === state.user) { alert("No puedes compartir el vehículo contigo mismo."); return; }
+                    if (vehicle.sharedWith.includes(targetUsername)) { alert("Este vehículo ya ha sido compartido con ese usuario."); return; }
+
+                    vehicle.sharedWith.push(targetUsername);
+                    saveDatabase();
+                    showAlert(`Vehículo compartido con ${targetUsername}.`);
+                    closeModal();
+                });
+            });
+
+            // --- INITIALIZATION ---
+            loadDatabase();
+            render();
+        });
+    </script>
+</body>
+</html>

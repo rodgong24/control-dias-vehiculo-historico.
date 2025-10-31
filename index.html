@@ -121,6 +121,37 @@
         #app-screen {
             display: none; /* Hidden by default */
         }
+        
+        /* --- Tabs --- */
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid var(--border-color);
+            margin-bottom: 1.5rem;
+        }
+
+        .tab-button {
+            background-color: transparent;
+            border: none;
+            padding: 1rem 1.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            color: var(--light-text);
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        .tab-button.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--accent-color);
+        }
+
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
 
         .section-title {
             margin-bottom: 1.5rem;
@@ -205,9 +236,43 @@
             border-bottom: 1px solid #eee;
             display: flex;
             justify-content: space-between;
+            align-items: center;
         }
         .usage-item:last-child {
             border-bottom: none;
+        }
+        .usage-item .delete-btn {
+            cursor: pointer;
+            color: #999;
+            font-size: 1.2rem;
+            background: none;
+            border: none;
+            padding: 0 5px;
+        }
+        .usage-item .delete-btn:hover {
+            color: var(--accent-color);
+        }
+
+        /* --- Historical View --- */
+        .historical-summary {
+            background: var(--card-background);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem 1.5rem;
+            margin-bottom: 1rem;
+        }
+        .historical-summary h3 {
+            color: var(--primary-color);
+            margin-bottom: 0.5rem;
+        }
+        .historical-summary p {
+            color: var(--light-text);
+            font-size: 0.9rem;
+        }
+        .year-breakdown {
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+            color: var(--text-color);
         }
 
         /* --- Action Buttons --- */
@@ -363,18 +428,34 @@
 
         <!-- App Screen -->
         <section id="app-screen">
-            <h2 class="section-title">Mis Vehículos</h2>
-            <ul id="vehicle-list">
-                <!-- Vehicle items will be inserted here -->
-            </ul>
+            <div class="tabs">
+                <button class="tab-button active" data-tab="vehicles-view">Mis Vehículos</button>
+                <button class="tab-button" data-tab="historical-view">Histórico Anual</button>
+            </div>
 
-            <div id="vehicle-detail">
-                <h2 id="detail-vehicle-name"></h2>
-                <p>Días de uso: <span id="detail-usage-count" class="vehicle-counter">0</span></p>
-                <h3>Historial de Uso:</h3>
-                <ul id="usage-list">
-                    <!-- Usage records will be inserted here -->
+            <!-- Vehicles Tab Content -->
+            <div id="vehicles-view" class="tab-content active">
+                <h2 class="section-title">Mis Vehículos</h2>
+                <ul id="vehicle-list">
+                    <!-- Vehicle items will be inserted here -->
                 </ul>
+
+                <div id="vehicle-detail">
+                    <h2 id="detail-vehicle-name"></h2>
+                    <p>Días de uso este año: <span id="detail-usage-count" class="vehicle-counter">0</span></p>
+                    <h3>Historial de Uso:</h3>
+                    <ul id="usage-list">
+                        <!-- Usage records will be inserted here -->
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Historical Tab Content -->
+            <div id="historical-view" class="tab-content">
+                <h2 class="section-title">Resumen Histórico por Vehículo</h2>
+                <div id="historical-list">
+                    <!-- Historical summaries will be inserted here -->
+                </div>
             </div>
         </section>
     </main>
@@ -406,20 +487,15 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- GLOBAL DATABASE & STATE ---
-            // The 'db' object is our single source of truth, stored in localStorage.
-            // It holds all users, all vehicles, and all usage records.
             const DB_KEY = 'vehicleAppDB';
-            let db = {
-                users: {},
-                vehicles: {},
-                usageRecords: []
-            };
+            let db = { users: {}, vehicles: {}, usageRecords: [] };
             
             let state = {
                 user: null,
-                vehicles: [], // This is a filtered list of vehicles the current user can see
-                usageRecords: [], // This is a filtered list of records for the visible vehicles
-                selectedVehicleId: null
+                vehicles: [],
+                usageRecords: [],
+                selectedVehicleId: null,
+                activeTab: 'vehicles-view'
             };
 
             // --- DOM ELEMENTS ---
@@ -440,39 +516,24 @@
             const detailVehicleName = document.getElementById('detail-vehicle-name');
             const detailUsageCount = document.getElementById('detail-usage-count');
             const usageList = document.getElementById('usage-list');
+            const historicalList = document.getElementById('historical-list');
             const modal = document.getElementById('modal');
             const modalTitle = document.getElementById('modal-title');
             const modalBody = document.getElementById('modal-body');
             const alertBox = document.getElementById('alert-box');
+            const tabButtons = document.querySelectorAll('.tab-button');
+            const tabContents = document.querySelectorAll('.tab-content');
 
             // --- CORE DATA & AUTH FUNCTIONS ---
-            const loadDatabase = () => {
-                const storedDB = localStorage.getItem(DB_KEY);
-                if (storedDB) {
-                    db = JSON.parse(storedDB);
-                }
-            };
-
-            const saveDatabase = () => {
-                localStorage.setItem(DB_KEY, JSON.stringify(db));
-            };
-            
+            const loadDatabase = () => { const storedDB = localStorage.getItem(DB_KEY); if (storedDB) { db = JSON.parse(storedDB); } };
+            const saveDatabase = () => { localStorage.setItem(DB_KEY, JSON.stringify(db)); };
             const hashPassword = (password) => btoa(password);
-
-            const showAuthError = (message) => {
-                authError.textContent = message;
-            };
-
-            const clearAuthError = () => {
-                authError.textContent = '';
-            };
+            const showAuthError = (message) => { authError.textContent = message; };
+            const clearAuthError = () => { authError.textContent = ''; };
 
             const register = (username, password) => {
                 clearAuthError();
-                if (db.users[username]) {
-                    showAuthError('El nombre de usuario ya existe.');
-                    return;
-                }
+                if (db.users[username]) { showAuthError('El nombre de usuario ya existe.'); return; }
                 db.users[username] = { hashedPassword: hashPassword(password) };
                 saveDatabase();
                 login(username, password);
@@ -481,128 +542,33 @@
             const login = (username, password) => {
                 clearAuthError();
                 const user = db.users[username];
-                if (!user || user.hashedPassword !== hashPassword(password)) {
-                    showAuthError('Usuario o contraseña incorrectos.');
-                    return;
-                }
+                if (!user || user.hashedPassword !== hashPassword(password)) { showAuthError('Usuario o contraseña incorrectos.'); return; }
                 state.user = username;
                 loadUserAccessibleData();
                 render();
             };
 
             const logout = () => {
-                state.user = null;
-                state.vehicles = [];
-                state.usageRecords = [];
-                state.selectedVehicleId = null;
+                state.user = null; state.vehicles = []; state.usageRecords = []; state.selectedVehicleId = null;
                 render();
             };
             
-            // This function populates the 'state' with data the current user is allowed to see
             const loadUserAccessibleData = () => {
-                state.vehicles = Object.values(db.vehicles).filter(v => 
-                    v.ownerId === state.user || (v.sharedWith && v.sharedWith.includes(state.user))
-                );
+                state.vehicles = Object.values(db.vehicles).filter(v => v.ownerId === state.user || (v.sharedWith && v.sharedWith.includes(state.user)));
                 const accessibleVehicleIds = new Set(state.vehicles.map(v => v.id));
                 state.usageRecords = db.usageRecords.filter(r => accessibleVehicleIds.has(r.vehicleId));
             };
 
-            // --- RENDER FUNCTIONS ---
-            const render = () => {
-                if (state.user) {
-                    showApp();
-                    renderVehicleList();
-                    renderVehicleDetail();
-                } else {
-                    showAuth();
-                }
-            };
-
-            const showAuth = () => {
-                authScreen.style.display = 'flex';
-                appScreen.style.display = 'none';
-                userInfo.style.display = 'none';
-                actionButtons.style.display = 'none';
-                clearAuthError();
-            };
-
-            const showApp = () => {
-                authScreen.style.display = 'none';
-                appScreen.style.display = 'block';
-                userInfo.style.display = 'flex';
-                actionButtons.style.display = 'flex';
-                userNameDisplay.textContent = state.user;
-            };
-
-            const renderVehicleList = () => {
-                vehicleList.innerHTML = '';
-                if (state.vehicles.length === 0) {
-                    vehicleList.innerHTML = '<li>No tienes vehículos. ¡Añade uno o espera a que te compartan uno!</li>';
-                    return;
-                }
-                state.vehicles.forEach(vehicle => {
-                    const count = getUsageCount(vehicle.id);
-                    const isOwner = vehicle.ownerId === state.user;
-                    const li = document.createElement('li');
-                    li.className = 'vehicle-item';
-                    if (vehicle.id === state.selectedVehicleId) {
-                        li.classList.add('selected');
-                    }
-                    li.innerHTML = `
-                        <span class="vehicle-name">${vehicle.name} ${!isOwner ? '👥' : ''}</span>
-                        <span class="vehicle-counter ${count >= 90 ? 'limit-reached' : ''}">${count} días</span>
-                    `;
-                    li.addEventListener('click', () => selectVehicle(vehicle.id));
-                    vehicleList.appendChild(li);
-                });
-            };
-
-            const renderVehicleDetail = () => {
-                if (!state.selectedVehicleId) {
-                    vehicleDetail.style.display = 'none';
-                    return;
-                }
-                const vehicle = state.vehicles.find(v => v.id === state.selectedVehicleId);
-                if (!vehicle) return;
-
-                vehicleDetail.style.display = 'block';
-                detailVehicleName.textContent = vehicle.name;
-                
-                const records = getUsageRecords(state.selectedVehicleId);
-                detailUsageCount.textContent = records.length;
-                detailUsageCount.className = `vehicle-counter ${records.length >= 90 ? 'limit-reached' : ''}`;
-
-                usageList.innerHTML = '';
-                if (records.length === 0) {
-                    usageList.innerHTML = '<li>No hay registros de uso para este vehículo.</li>';
-                } else {
-                    records.sort((a,b) => new Date(b.date) - new Date(a.date));
-                    records.forEach(record => {
-                        const li = document.createElement('li');
-                        li.className = 'usage-item';
-                        const date = new Date(record.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-                        li.innerHTML = `<span>${date}</span><span>Usado por: <strong>${record.usedBy}</strong></span>`;
-                        usageList.appendChild(li);
-                    });
-                }
-            };
-            
             // --- LOGIC FUNCTIONS ---
-            const getUsageCount = (vehicleId) => {
-                return db.usageRecords.filter(r => r.vehicleId === vehicleId).length;
+            const getUsageCount = (vehicleId, year = null) => {
+                const targetYear = year || new Date().getFullYear();
+                return db.usageRecords.filter(r => r.vehicleId === vehicleId && new Date(r.date).getFullYear() === targetYear).length;
             };
 
             const getUsageRecords = (vehicleId) => {
                 return db.usageRecords.filter(r => r.vehicleId === vehicleId);
             };
-
-            const showAlert = (message) => {
-                alertBox.textContent = message;
-                alertBox.style.display = 'block';
-                setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
-            };
             
-            // Check for duplicates against the GLOBAL usage records list
             const hasUsageOnDate = (vehicleId, dateToCheck) => {
                 const dateStringToCheck = new Date(dateToCheck).toISOString().split('T')[0];
                 return db.usageRecords.some(record => {
@@ -612,24 +578,44 @@
                 });
             };
 
-            // --- ACTION HANDLERS ---
-            const selectVehicle = (id) => {
-                state.selectedVehicleId = id;
-                render();
+            const deleteUsageRecord = (recordId) => {
+                const recordIndex = db.usageRecords.findIndex(r => r.id === recordId);
+                if (recordIndex > -1) {
+                    db.usageRecords.splice(recordIndex, 1);
+                    saveDatabase();
+                    loadUserAccessibleData();
+                    render();
+                    showAlert('Día de uso eliminado correctamente.');
+                }
             };
 
+            const processHistoricalData = () => {
+                const historicalData = [];
+                state.vehicles.forEach(vehicle => {
+                    const allRecords = getUsageRecords(vehicle.id);
+                    const totalDays = allRecords.length;
+                    const yearlyBreakdown = {};
+                    allRecords.forEach(record => {
+                        const year = new Date(record.date).getFullYear();
+                        yearlyBreakdown[year] = (yearlyBreakdown[year] || 0) + 1;
+                    });
+                    historicalData.push({ vehicleName: vehicle.name, totalDays, yearlyBreakdown });
+                });
+                return historicalData;
+            };
+
+            const showAlert = (message) => {
+                alertBox.textContent = message;
+                alertBox.style.display = 'block';
+                setTimeout(() => { alertBox.style.display = 'none'; }, 4000);
+            };
+            
+            // --- ACTION HANDLERS ---
+            const selectVehicle = (id) => { state.selectedVehicleId = id; render(); };
             const addVehicle = (name) => {
                 if (!name) return;
-                const newVehicle = {
-                    id: Date.now().toString(),
-                    name: name,
-                    ownerId: state.user,
-                    sharedWith: []
-                };
-                db.vehicles[newVehicle.id] = newVehicle;
-                saveDatabase();
-                loadUserAccessibleData(); // Refresh the user's view
-                render();
+                const newVehicle = { id: Date.now().toString(), name: name, ownerId: state.user, sharedWith: [] };
+                db.vehicles[newVehicle.id] = newVehicle; saveDatabase(); loadUserAccessibleData(); render();
             };
 
             const markUsage = (vehicleId, date) => {
@@ -639,73 +625,143 @@
                     showAlert(`El vehículo "${vehicleName}" ya tiene un registro de uso para el día ${formattedDate}.`);
                     return false;
                 }
-
-                const newRecord = {
-                    id: Date.now().toString(),
-                    vehicleId: vehicleId,
-                    date: date.toISOString(),
-                    usedBy: state.user
-                };
-                db.usageRecords.push(newRecord);
-                saveDatabase();
-                loadUserAccessibleData(); // Refresh all users' views
-                render();
+                const newRecord = { id: Date.now().toString(), vehicleId: vehicleId, date: date.toISOString(), usedBy: state.user };
+                db.usageRecords.push(newRecord); saveDatabase(); loadUserAccessibleData(); render();
                 
                 const count = getUsageCount(vehicleId);
-                if (count === 90) {
-                    showAlert("Se acerca al límite de uso (90 días)");
-                } else if (count === 96) {
-                    showAlert("Límite de uso alcanzado (96 días)");
-                }
+                if (count === 90) showAlert("Se acerca al límite de uso (90 días)");
+                else if (count === 96) showAlert("Límite de uso alcanzado (96 días)");
                 return true;
             };
             
             // --- MODAL LOGIC ---
-            const openModal = (title, content) => {
-                modalTitle.textContent = title;
-                modalBody.innerHTML = content;
-                modal.style.display = 'block';
+            const openModal = (title, content) => { modalTitle.textContent = title; modalBody.innerHTML = content; modal.style.display = 'block'; };
+            const closeModal = () => { modal.style.display = 'none'; };
+
+            // --- RENDER FUNCTIONS ---
+            const render = () => {
+                if (state.user) { showApp(); renderTabs(); } else { showAuth(); }
+            };
+            const showAuth = () => { authScreen.style.display = 'flex'; appScreen.style.display = 'none'; userInfo.style.display = 'none'; actionButtons.style.display = 'none'; clearAuthError(); };
+            const showApp = () => { authScreen.style.display = 'none'; appScreen.style.display = 'block'; userInfo.style.display = 'flex'; actionButtons.style.display = 'flex'; userNameDisplay.textContent = state.user; };
+            
+            const renderTabs = () => {
+                tabButtons.forEach(button => {
+                    button.classList.toggle('active', button.dataset.tab === state.activeTab);
+                });
+                tabContents.forEach(content => {
+                    content.classList.toggle('active', content.id === state.activeTab);
+                });
+
+                if (state.activeTab === 'vehicles-view') {
+                    renderVehicleList();
+                    renderVehicleDetail();
+                } else if (state.activeTab === 'historical-view') {
+                    renderHistoricalView();
+                }
             };
 
-            const closeModal = () => {
-                modal.style.display = 'none';
+            const renderVehicleList = () => {
+                vehicleList.innerHTML = '';
+                if (state.vehicles.length === 0) { vehicleList.innerHTML = '<li>No tienes vehículos. ¡Añade uno o espera a que te compartan uno!</li>'; return; }
+                state.vehicles.forEach(vehicle => {
+                    const count = getUsageCount(vehicle.id);
+                    const isOwner = vehicle.ownerId === state.user;
+                    const li = document.createElement('li');
+                    li.className = 'vehicle-item';
+                    if (vehicle.id === state.selectedVehicleId) li.classList.add('selected');
+                    li.innerHTML = `<span class="vehicle-name">${vehicle.name} ${!isOwner ? '👥' : ''}</span><span class="vehicle-counter ${count >= 90 ? 'limit-reached' : ''}">${count} días</span>`;
+                    li.addEventListener('click', () => selectVehicle(vehicle.id));
+                    vehicleList.appendChild(li);
+                });
+            };
+
+            const renderVehicleDetail = () => {
+                if (!state.selectedVehicleId) { vehicleDetail.style.display = 'none'; return; }
+                const vehicle = state.vehicles.find(v => v.id === state.selectedVehicleId);
+                if (!vehicle) return;
+                vehicleDetail.style.display = 'block';
+                detailVehicleName.textContent = vehicle.name;
+                const records = getUsageRecords(state.selectedVehicleId);
+                detailUsageCount.textContent = getUsageCount(state.selectedVehicleId);
+                detailUsageCount.className = `vehicle-counter ${getUsageCount(state.selectedVehicleId) >= 90 ? 'limit-reached' : ''}`;
+                
+                usageList.innerHTML = '';
+                if (records.length === 0) { usageList.innerHTML = '<li>No hay registros de uso para este vehículo.</li>'; return; }
+                
+                records.sort((a,b) => new Date(b.date) - new Date(a.date));
+                records.forEach(record => {
+                    const li = document.createElement('li');
+                    li.className = 'usage-item';
+                    const date = new Date(record.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    li.innerHTML = `
+                        <span>${date} - <strong>${record.usedBy}</strong></span>
+                        <button class="delete-btn" data-record-id="${record.id}">🗑️</button>
+                    `;
+                    usageList.appendChild(li);
+                });
+            };
+
+            const renderHistoricalView = () => {
+                historicalList.innerHTML = '';
+                const data = processHistoricalData();
+                if (data.length === 0) {
+                    historicalList.innerHTML = '<p>No hay datos históricos disponibles.</p>';
+                    return;
+                }
+                data.forEach(item => {
+                    const summaryDiv = document.createElement('div');
+                    summaryDiv.className = 'historical-summary';
+                    let breakdownHtml = '';
+                    const sortedYears = Object.keys(item.yearlyBreakdown).sort((a,b) => b - a);
+                    sortedYears.forEach(year => {
+                        breakdownHtml += `<span class="year-breakdown">${year}: ${item.yearlyBreakdown[year]} días</span>`;
+                    });
+                    summaryDiv.innerHTML = `
+                        <h3>${item.vehicleName}</h3>
+                        <p><strong>Total de días usados:</strong> ${item.totalDays}</p>
+                        ${breakdownHtml}
+                    `;
+                    historicalList.appendChild(summaryDiv);
+                });
             };
 
             // --- EVENT LISTENERS ---
-            authForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                login(usernameInput.value, passwordInput.value);
-            });
-
+            authForm.addEventListener('submit', (e) => { e.preventDefault(); login(usernameInput.value, passwordInput.value); });
             loginBtn.addEventListener('click', () => login(usernameInput.value, passwordInput.value));
             registerBtn.addEventListener('click', () => register(usernameInput.value, passwordInput.value));
             logoutBtn.addEventListener('click', logout);
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    state.activeTab = button.dataset.tab;
+                    render();
+                });
+            });
+
+            usageList.addEventListener('click', (e) => {
+                if (e.target.classList.contains('delete-btn')) {
+                    if (confirm('¿Estás seguro de que quieres eliminar este día?')) {
+                        deleteUsageRecord(e.target.dataset.recordId);
+                    }
+                }
+            });
             
             window.onclick = (event) => { if (event.target === modal) closeModal(); };
             document.querySelector('.close').onclick = closeModal;
 
             document.getElementById('add-vehicle-btn').addEventListener('click', () => {
-                openModal('Añadir Nuevo Vehículo', `
-                    <input type="text" id="new-vehicle-name" placeholder="Nombre del vehículo">
-                    <button id="confirm-add-vehicle">Añadir</button>
-                `);
+                openModal('Añadir Nuevo Vehículo', `<input type="text" id="new-vehicle-name" placeholder="Nombre del vehículo"><button id="confirm-add-vehicle">Añadir</button>`);
                 document.getElementById('confirm-add-vehicle').addEventListener('click', () => {
                     const name = document.getElementById('new-vehicle-name').value.trim();
-                    if(name) {
-                        addVehicle(name);
-                        closeModal();
-                    }
+                    if(name) { addVehicle(name); closeModal(); }
                 });
             });
 
             document.getElementById('use-today-btn').addEventListener('click', () => {
                 if (state.vehicles.length === 0) { alert("Debes añadir un vehículo primero."); return; }
                 const options = state.vehicles.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-                openModal('Usar Vehículo Hoy', `
-                    <p>Selecciona el vehículo que has usado hoy:</p>
-                    <select id="use-today-select">${options}</select>
-                    <button id="confirm-use-today">Marcar Uso</button>
-                `);
+                openModal('Usar Vehículo Hoy', `<p>Selecciona el vehículo que has usado hoy:</p><select id="use-today-select">${options}</select><button id="confirm-use-today">Marcar Uso</button>`);
                 document.getElementById('confirm-use-today').addEventListener('click', () => {
                     const vehicleId = document.getElementById('use-today-select').value;
                     if (markUsage(vehicleId, new Date())) closeModal();
@@ -715,49 +771,26 @@
             document.getElementById('use-date-btn').addEventListener('click', () => {
                 if (state.vehicles.length === 0) { alert("Debes añadir un vehículo primero."); return; }
                 const options = state.vehicles.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
-                openModal('Usar Vehículo en Fecha Pasada', `
-                    <p>Selecciona el vehículo y la fecha:</p>
-                    <select id="use-date-select">${options}</select>
-                    <input type="date" id="use-date-input">
-                    <button id="confirm-use-date">Marcar Uso</button>
-                `);
+                openModal('Usar Vehículo en Fecha Pasada', `<p>Selecciona el vehículo y la fecha:</p><select id="use-date-select">${options}</select><input type="date" id="use-date-input"><button id="confirm-use-date">Marcar Uso</button>`);
                 document.getElementById('confirm-use-date').addEventListener('click', () => {
                     const vehicleId = document.getElementById('use-date-select').value;
                     const dateStr = document.getElementById('use-date-input').value;
-                    if(dateStr) {
-                        if (markUsage(vehicleId, new Date(dateStr))) closeModal();
-                    } else {
-                        alert("Por favor, selecciona una fecha.");
-                    }
+                    if(dateStr) { if (markUsage(vehicleId, new Date(dateStr))) closeModal(); } else { alert("Por favor, selecciona una fecha."); }
                 });
             });
 
             document.getElementById('share-vehicle-btn').addEventListener('click', () => {
-                if (!state.selectedVehicleId) {
-                    alert("Por favor, selecciona un vehículo para compartir.");
-                    return;
-                }
+                if (!state.selectedVehicleId) { alert("Por favor, selecciona un vehículo para compartir."); return; }
                 const vehicle = db.vehicles[state.selectedVehicleId];
-                if (vehicle.ownerId !== state.user) {
-                    alert("Solo el propietario del vehículo puede compartirlo.");
-                    return;
-                }
-                openModal(`Compartir "${vehicle.name}"`, `
-                    <p>Introduce el nombre de usuario con quien quieres compartir este vehículo:</p>
-                    <input type="text" id="share-username-input" placeholder="Nombre de usuario">
-                    <button id="confirm-share">Compartir</button>
-                `);
+                if (vehicle.ownerId !== state.user) { alert("Solo el propietario del vehículo puede compartirlo."); return; }
+                openModal(`Compartir "${vehicle.name}"`, `<p>Introduce el nombre de usuario con quien quieres compartir este vehículo:</p><input type="text" id="share-username-input" placeholder="Nombre de usuario"><button id="confirm-share">Compartir</button>`);
                 document.getElementById('confirm-share').addEventListener('click', () => {
                     const targetUsername = document.getElementById('share-username-input').value.trim();
                     if (!targetUsername) { alert("Introduce un nombre de usuario."); return; }
                     if (!db.users[targetUsername]) { alert("Ese usuario no existe."); return; }
                     if (targetUsername === state.user) { alert("No puedes compartir el vehículo contigo mismo."); return; }
                     if (vehicle.sharedWith.includes(targetUsername)) { alert("Este vehículo ya ha sido compartido con ese usuario."); return; }
-
-                    vehicle.sharedWith.push(targetUsername);
-                    saveDatabase();
-                    showAlert(`Vehículo compartido con ${targetUsername}.`);
-                    closeModal();
+                    vehicle.sharedWith.push(targetUsername); saveDatabase(); showAlert(`Vehículo compartido con ${targetUsername}.`); closeModal();
                 });
             });
 

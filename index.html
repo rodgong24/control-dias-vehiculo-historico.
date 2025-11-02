@@ -369,9 +369,11 @@
                 }
             };
 
+            // CORRECCIÓN PROBLEMA 1: Añadidos logs para depurar la función de compartir.
             const shareVehicle = (vehicleId, targetEmail) => {
-                // CORRECCIÓN: Añadido .catch() para manejar errores en la verificación y compartición.
+                console.log(`Intentando compartir con: ${targetEmail}`); // Log para depuración
                 auth.fetchSignInMethodsForEmail(targetEmail).then(methods => {
+                    console.log(`Métodos encontrados para ${targetEmail}:`, methods); // <-- ESTA ES LA LÍNEA CLAVE
                     if (methods.length === 0) {
                         showAlert('No hay ningún usuario registrado con ese correo electrónico.');
                         return;

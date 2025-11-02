@@ -238,23 +238,18 @@
             const clearAuthError = () => { authError.textContent = ''; };
             const showAlert = (message) => { alertBox.textContent = message; alertBox.style.display = 'block'; setTimeout(() => { alertBox.style.display = 'none'; }, 4000); };
             
-            // This is the most important listener. It tells us if Firebase thinks the user is logged in.
             auth.onAuthStateChanged(user => {
-                console.log("DETECTIVE: onAuthStateChanged fired. User object is:", user);
                 if (user) {
-                    console.log("DETECTIVE: User is logged in. Setting up app...");
                     state.user = user;
                     setupDataListeners();
                     showApp();
-                    render();
                 } else {
-                    console.log("DETECTIVE: User is logged out. Showing auth screen.");
                     state.user = null;
                     if (state.unsubscribeVehicles) state.unsubscribeVehicles();
                     if (state.unsubscribeRecords) state.unsubscribeRecords();
                     showAuth();
-                    render();
                 }
+                render();
             });
 
             const setupDataListeners = () => {
@@ -264,12 +259,20 @@
                 const vehiclesQuery = db.collection('vehicles').where('ownerId', '==', state.user.uid);
                 const sharedVehiclesQuery = db.collection('vehicles').where('sharedWith', 'array-contains', state.user.uid);
                 
-                state.unsubscribeVehicles = onSnapshot(query(vehiclesQuery, sharedVehiclesQuery), (snapshot) => {
+                // Listen to owned vehicles
+                const unsubscribeOwned = db.collection('vehicles').where('ownerId', '==', state.user.uid).onSnapshot(snapshot => {
                     state.vehicles = [];
                     snapshot.forEach(doc => {
                         state.vehicles.push({ id: doc.id, ...doc.data() });
                     });
-                    setupUsageListener();
+                    // Listen to shared vehicles
+                    const unsubscribeShared = db.collection('vehicles').where('sharedWith', 'array-contains', state.user.uid).onSnapshot(snapshot => {
+                        snapshot.forEach(doc => {
+                            state.vehicles.push({ id: doc.id, ...doc.data() });
+                        });
+                        setupUsageListener();
+                    });
+                    state.unsubscribeVehicles = () => { unsubscribeOwned(); unsubscribeShared(); };
                 });
             };
             
@@ -282,7 +285,7 @@
                 }
                 const vehicleIds = state.vehicles.map(v => v.id);
                 const recordsQuery = db.collection('usageRecords').where('vehicleId', 'in', vehicleIds);
-                state.unsubscribeRecords = onSnapshot(recordsQuery, (snapshot) => {
+                state.unsubscribeRecords = db.collection('usageRecords').where('vehicleId', 'in', vehicleIds).onSnapshot(snapshot => {
                     state.usageRecords = [];
                     snapshot.forEach(doc => {
                         state.usageRecords.push({ id: doc.id, ...doc.data() });
@@ -293,7 +296,6 @@
 
             // --- ACTION HANDLERS ---
             const register = () => {
-                console.log("FUNCTION CALLED: register");
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
                 if (!email || !password) { showAuthError("Por favor, completa todos los campos."); return; }
@@ -301,7 +303,6 @@
             };
 
             const login = () => {
-                console.log("FUNCTION CALLED: login");
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
                 if (!email || !password) { showAuthError("Por favor, completa todos los campos."); return; }
@@ -357,27 +358,12 @@
 
             // --- RENDER FUNCTIONS ---
             const render = () => {
-                console.log("DETECTIVE: render() function called.");
                 if (!state.user) return;
                 renderTabs();
             };
 
-            const showAuth = () => {
-                console.log("DETECTIVE: showAuth() function called. Hiding app screen.");
-                authScreen.style.display = 'flex';
-                appScreen.style.display = 'none';
-                userInfo.style.display = 'none';
-                actionButtons.style.display = 'none';
-            };
-            
-            const showApp = () => {
-                console.log("DETECTIVE: showApp() function called. Hiding auth screen.");
-                authScreen.style.display = 'none';
-                appScreen.style.display = 'block';
-                userInfo.style.display = 'flex';
-                actionButtons.style.display = 'flex';
-                userNameDisplay.textContent = state.user.email;
-            };
+            const showAuth = () => { authScreen.style.display = 'flex'; appScreen.style.display = 'none'; userInfo.style.display = 'none'; actionButtons.style.display = 'none'; };
+            const showApp = () => { authScreen.style.display = 'none'; appScreen.style.display = 'block'; userInfo.style.display = 'flex'; actionButtons.style.display = 'flex'; userNameDisplay.textContent = state.user.email; };
             
             const renderTabs = () => {
                 tabButtons.forEach(button => button.classList.toggle('active', button.dataset.tab === state.activeTab));

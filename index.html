@@ -378,8 +378,8 @@
             const showApp = () => { authScreen.style.display = 'none'; appScreen.style.display = 'block'; userInfo.style.display = 'flex'; actionButtons.style.display = 'flex'; userNameDisplay.textContent = state.user.email; };
             
             const renderTabs = () => {
-                tabButtons.forEach(button => button.classList.toggle('active', button.dataset.tab === state.activeTab);
-                tabContents.forEach(content => content.classList.toggle('active', content.id === state.activeTab);
+                tabButtons.forEach(button => button.classList.toggle('active', button.dataset.tab === state.activeTab));
+                tabContents.forEach(content => content.classList.toggle('active', content.id === state.activeTab));
                 if (state.activeTab === 'vehicles-view') { renderVehicleList(); renderVehicleDetail(); }
                 else if (state.activeTab === 'historical-view') { renderHistoricalView(); }
             };

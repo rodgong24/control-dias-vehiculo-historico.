@@ -180,15 +180,14 @@
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             // --- PEGA AQUÍ TUS CREDENCIALES DE FIREBASE ---
-            // Reemplaza el objeto siguiente con el de tu consola de Firebase
             const firebaseConfig = {
-    apiKey: "AIzaSyBOgdaFJYnKp21rP_Wbi_GUD5g0N4C4Nx0",
-    authDomain: "control-dias-vehiculo-historic.firebaseapp.com",
-    projectId: "control-dias-vehiculo-historic",
-    storageBucket: "control-dias-vehiculo-historic.firebasestorage.app",
-    messagingSenderId: "865117722921",
-    appId: "1:865117722921:web:d03aff577cb15b02f7ff38",
-    measurementId: "G-QX2TS8GHRX"
+                apiKey: "AIzaSyBOgdaFJYnKp21rP_Wbi_GUD5g0N4C4Nx0",
+                authDomain: "control-dias-vehiculo-historic.firebaseapp.com",
+                projectId: "control-dias-vehiculo-historic",
+                storageBucket: "control-dias-vehiculo-historic.firebasestorage.app",
+                messagingSenderId: "865117722921",
+                appId: "1:865117722921:web:d03aff577cb15b02f7ff38",
+                measurementId: "G-QX2TS8GHRX"
             };
             // ----------------------------------------------
 
@@ -199,7 +198,7 @@
             
             // --- STATE MANAGEMENT ---
             let state = {
-                user: null, // Will hold the firebase user object
+                user: null,
                 vehicles: [],
                 usageRecords: [],
                 selectedVehicleId: null,
@@ -239,7 +238,6 @@
             const clearAuthError = () => { authError.textContent = ''; };
             const showAlert = (message) => { alertBox.textContent = message; alertBox.style.display = 'block'; setTimeout(() => { alertBox.style.display = 'none'; }, 4000); };
             
-            // Central listener for auth state changes
             auth.onAuthStateChanged(user => {
                 if (user) {
                     state.user = user;
@@ -290,6 +288,7 @@
 
             // --- ACTION HANDLERS ---
             const register = () => {
+                console.log("FUNCTION CALLED: register"); // <-- LÍNEA DE DETECTIVE
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
                 if (!email || !password) { showAuthError("Por favor, completa todos los campos."); return; }
@@ -297,6 +296,7 @@
             };
 
             const login = () => {
+                console.log("FUNCTION CALLED: login"); // <-- LÍNEA DE DETECTIVE
                 const email = emailInput.value.trim();
                 const password = passwordInput.value;
                 if (!email || !password) { showAuthError("Por favor, completa todos los campos."); return; }
@@ -336,27 +336,16 @@
             };
 
             const shareVehicle = (vehicleId, targetEmail) => {
-                // In a real app, you'd search for the user by email to get their UID.
-                // For simplicity, we'll assume the target user exists and get their UID.
-                // This is a simplification. A more robust solution would use a cloud function.
                 auth.fetchSignInMethodsForEmail(targetEmail).then(methods => {
                     if (methods.length === 0) {
                         showAlert('No hay ningún usuario registrado con ese correo electrónico.');
                         return;
                     }
-                    // We can't get the UID directly on the client side easily without another query.
-                    // For this demo, we'll share by email and the other user will see it when they log in.
-                    // The query `sharedWith array-contains state.user.uid` won't work with emails.
-                    // This part needs a more complex backend or a different data structure.
-                    // For now, let's simulate it by adding the email to the sharedWith array.
                     const vehicleRef = db.collection('vehicles').doc(vehicleId);
                     vehicleRef.update({
                         sharedWith: firebase.firestore.FieldValue.arrayUnion(targetEmail)
                     }).then(() => {
                         showAlert(`Vehículo compartido con ${targetEmail}.`);
-                        // NOTE: The other user won't see it automatically because the query is by UID.
-                        // This is a known limitation of this simplified approach.
-                        // A full solution would involve a "users" collection to map emails to UIDs.
                     });
                 });
             };

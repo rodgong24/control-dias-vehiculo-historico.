@@ -256,7 +256,6 @@
                 render();
             });
 
-            // CORRECCIÓN PROBLEMA 2: Reestructuración para evitar la condición de carrera
             const setupDataListeners = () => {
                 if (state.unsubscribeVehicles) state.unsubscribeVehicles();
                 if (state.unsubscribeRecords) state.unsubscribeRecords();
@@ -264,11 +263,9 @@
                 const userEmail = state.user.email;
                 const userId = state.user.uid;
 
-                // Variables locales para almacenar los resultados de cada consulta
                 let ownedVehicles = [];
                 let sharedVehicles = [];
 
-                // Función para combinar los resultados y actualizar el estado
                 const combineAndRender = () => {
                     const combined = [...ownedVehicles, ...sharedVehicles].filter((vehicle, index, self) =>
                         index === self.findIndex((v) => v.id === vehicle.id)
@@ -372,24 +369,36 @@
                 }
             };
 
-            // CORRECCIÓN PROBLEMA 1: Añadidos logs para depurar la función de compartir.
+            // VERSIÓN MEJORADA PARA DEPURACIÓN
             const shareVehicle = (vehicleId, targetEmail) => {
-                console.log(`Intentando compartir con: ${targetEmail}`);
+                if (!targetEmail) {
+                    showAlert('Por favor, introduce un correo electrónico.');
+                    return;
+                }
+                console.log(`[DEBUG] Intentando compartir con: ${targetEmail}`);
+                console.log(`[DEBUG] Proyecto Firebase actual: ${firebaseConfig.projectId}`);
+                
                 auth.fetchSignInMethodsForEmail(targetEmail).then(methods => {
-                    console.log(`Métodos encontrados para ${targetEmail}:`, methods);
-                    if (methods.length === 0) {
-                        showAlert('No hay ningún usuario registrado con ese correo electrónico.');
-                        return;
+                    console.log(`[DEBUG] Métodos encontrados para ${targetEmail}:`, methods);
+                    
+                    if (methods && methods.length > 0) {
+                        // El usuario existe, procedemos a compartir
+                        const vehicleRef = db.collection('vehicles').doc(vehicleId);
+                        vehicleRef.update({
+                            sharedWith: firebase.firestore.FieldValue.arrayUnion(targetEmail)
+                        }).then(() => {
+                            showAlert(`Vehículo compartido con ${targetEmail}.`);
+                        }).catch(error => {
+                            console.error("[ERROR] Error al compartir:", error);
+                            showAlert('Error al compartir el vehículo: ' + error.message);
+                        });
+                    } else {
+                        // El usuario no existe en este proyecto
+                        console.error(`[ERROR] No se encontraron métodos para ${targetEmail}. ¿El usuario está registrado en el proyecto "${firebaseConfig.projectId}"?`);
+                        showAlert(`Error: No se encontró al usuario "${targetEmail}" en este proyecto. Verifica que el correo sea correcto y que el usuario esté registrado en este proyecto de Firebase.`);
                     }
-                    const vehicleRef = db.collection('vehicles').doc(vehicleId);
-                    vehicleRef.update({
-                        sharedWith: firebase.firestore.FieldValue.arrayUnion(targetEmail)
-                    }).then(() => {
-                        showAlert(`Vehículo compartido con ${targetEmail}.`);
-                    }).catch(error => {
-                        showAlert('Error al compartir el vehículo: ' + error.message);
-                    });
                 }).catch(error => {
+                    console.error("[ERROR] Error al verificar el correo:", error);
                     showAlert('Error al verificar el correo electrónico: ' + error.message);
                 });
             };

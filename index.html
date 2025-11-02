@@ -512,10 +512,23 @@
                 if (state.vehicles.length === 0) { alert("Debes añadir un vehículo primero."); return; }
                 const options = state.vehicles.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
                 openModal('Usar Vehículo en Fecha Pasada', `<p>Selecciona el vehículo y la fecha:</p><select id="use-date-select">${options}</select><input type="date" id="use-date-input"><button id="confirm-use-date">Marcar Uso</button>`);
+                
+                // CORRECCIÓN FINAL: Estructura if-else corregida en el botón de usar fecha pasada
                 document.getElementById('confirm-use-date').addEventListener('click', () => {
                     const vehicleId = document.getElementById('use-date-select').value;
                     const dateStr = document.getElementById('use-date-input').value;
-                    if(dateStr) { if (markUsage(vehicleId, new Date(dateStr)) closeModal(); } else { alert("Por favor, selecciona una fecha."); }
+                    
+                    if (dateStr) {
+                        // Si se introdujo una fecha, intentamos marcar el uso
+                        if (markUsage(vehicleId, new Date(dateStr))) {
+                            // Si markUsage() devuelve true (éxito), cerramos el modal
+                            closeModal();
+                        }
+                        // Si markUsage() devuelve false (ej. día ya registrado), la función ya muestra una alerta.
+                    } else {
+                        // Si el campo de fecha estaba vacío, mostramos esta alerta
+                        alert("Por favor, selecciona una fecha.");
+                    }
                 });
             });
 

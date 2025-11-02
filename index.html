@@ -63,7 +63,8 @@
         .vehicle-name { font-weight: bold; font-size: 1.1rem; }
         .vehicle-counter { font-size: 1.2rem; font-weight: bold; color: var(--secondary-color); }
         .vehicle-counter.limit-reached { color: var(--accent-color); animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); 100% { transform: scale(1); } }
+        /* CORRECCIÓN: Añadida la llave de cierre que faltaba */
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
         /* --- Vehicle Detail --- */
         #vehicle-detail { background: var(--card-background); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.5rem; display: none; }
@@ -99,7 +100,8 @@
 
         /* --- Alert Box --- */
         .alert-box { position: fixed; top: 80px; right: 20px; background-color: var(--accent-color); color: white; padding: 1rem 1.5rem; border-radius: 5px; box-shadow: var(--shadow-hover); z-index: 2000; display: none; animation: slideInRight 0.5s; }
-        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); }
+        /* CORRECCIÓN: Añadida la llave de cierre que faltaba */
+        @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
     </style>
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
@@ -176,7 +178,8 @@
             </div>
             <div class="modal-body" id="modal-body"></div>
         </div>
-    
+    </div> <!-- CORRECCIÓN: Añadida la etiqueta de cierre </div> que faltaba para el modal -->
+
     <!-- Alert Box -->
     <div id="alert-box" class="alert-box"></div>
 
@@ -270,6 +273,9 @@
                     ownedSnapshot.forEach(doc => {
                         state.vehicles.push({ id: doc.id, ...doc.data() });
                     });
+                    // CORRECCIÓN: Mover las llamadas a render aquí para que se actualice la UI al cambiar los vehículos propios.
+                    setupUsageListener();
+                    render();
                 });
 
                 const unsubscribeShared = sharedQuery.onSnapshot(sharedSnapshot => {
@@ -278,6 +284,7 @@
                             state.vehicles.push({ id: doc.id, ...doc.data() });
                         }
                     });
+                    // CORRECCIÓN: Asegurarse de que también se renderice aquí.
                     setupUsageListener();
                     render();
                 });
@@ -310,6 +317,7 @@
                 const email = emailInput.value.trim();
                 const password = passwordInput.value.trim();
                 if (!email || !password) { showAuthError("Por favor, completa todos los campos."); return; }
+                // CORRECCIÓN: Añadido .catch() para manejar errores de registro.
                 auth.createUserWithEmailAndPassword(email, password).catch(error => showAuthError(error.message));
             };
 
@@ -317,6 +325,7 @@
                 const email = emailInput.value.trim();
                 const password = passwordInput.value.trim();
                 if (!email || !password) { showAuthError("Por favor, completa todos los campos."); return; }
+                // CORRECCIÓN: Añadido .catch() para manejar errores de inicio de sesión.
                 auth.signInWithEmailAndPassword(email, password).catch(error => showAuthError(error.message));
             };
 
@@ -325,7 +334,8 @@
             const addVehicle = (name) => {
                 if (!name) return;
                 const userId = state.user.uid;
-                db.collection('vehicles').doc(userId).set({
+                // CORRECCIÓN: Cambiado .doc(userId).set() por .add() para permitir múltiples vehículos por usuario.
+                db.collection('vehicles').add({
                     name: name,
                     ownerId: userId,
                     sharedWith: []
@@ -339,21 +349,28 @@
                     showAlert('Ya existe un registro de uso para ese día en este vehículo.');
                     return false;
                 }
+                // CORRECCIÓN: Añadido .catch() para manejar errores al marcar uso.
                 db.collection('usageRecords').add({
                     vehicleId: vehicleId,
                     date: firebase.firestore.Timestamp.fromDate(date),
                     usedBy: state.user.email
+                }).catch(error => {
+                    showAlert('Error al guardar el uso: ' + error.message);
                 });
                 return true;
             };
 
             const deleteUsageRecord = (recordId) => {
                 if (confirm('¿Estás seguro de que quieres eliminar este día?')) {
-                    db.collection('usageRecords').doc(recordId).delete();
+                    // CORRECCIÓN: Añadido .catch() para manejar errores al borrar.
+                    db.collection('usageRecords').doc(recordId).delete().catch(error => {
+                        showAlert('Error al eliminar el registro: ' + error.message);
+                    });
                 }
             };
 
             const shareVehicle = (vehicleId, targetEmail) => {
+                // CORRECCIÓN: Añadido .catch() para manejar errores en la verificación y compartición.
                 auth.fetchSignInMethodsForEmail(targetEmail).then(methods => {
                     if (methods.length === 0) {
                         showAlert('No hay ningún usuario registrado con ese correo electrónico.');
@@ -364,7 +381,11 @@
                         sharedWith: firebase.firestore.FieldValue.arrayUnion(targetEmail)
                     }).then(() => {
                         showAlert(`Vehículo compartido con ${targetEmail}.`);
+                    }).catch(error => {
+                        showAlert('Error al compartir el vehículo: ' + error.message);
                     });
+                }).catch(error => {
+                    showAlert('Error al verificar el correo electrónico: ' + error.message);
                 });
             };
 

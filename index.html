@@ -243,14 +243,11 @@
             const showAlert = (message) => { alertBox.textContent = message; alertBox.style.display = 'block'; setTimeout(() => { alertBox.style.display = 'none'; }, 4000); };
             
             auth.onAuthStateChanged(user => {
-                console.log("DEPURACIÓN: onAuthStateChanged disparado. Usuario:", user ? user.email : 'null');
                 if (user) {
                     state.user = user;
-                    console.log("DEPURACIÓN: Usuario logueado. Configurando listeners de datos...");
                     setupDataListeners();
                     showApp();
                 } else {
-                    console.log("DEPURACIÓN: Usuario deslogueado. Limpiando listeners.");
                     state.user = null;
                     if (state.unsubscribeVehicles) state.unsubscribeVehicles();
                     if (state.unsubscribeRecords) state.unsubscribeRecords();
@@ -266,37 +263,27 @@
                 const userEmail = state.user.email;
                 const userId = state.user.uid;
 
-                console.log(`DEPURACIÓN: Configurando listener para vehículos de ${userEmail} (UID: ${userId})`);
-
                 const ownedQuery = db.collection('vehicles').where('ownerId', '==', userId);
                 const sharedQuery = db.collection('vehicles').where('sharedWith', 'array-contains', userEmail);
 
                 const unsubscribeOwned = ownedQuery.onSnapshot(ownedSnapshot => {
-                    console.log("DEPURACIÓN: Snapshot de vehículos propios recibido.");
                     state.vehicles = [];
                     ownedSnapshot.forEach(doc => {
                         state.vehicles.push({ id: doc.id, ...doc.data() });
                     });
-                    console.log("DEPURACIÓN: Vehículos propios procesados. Total actual:", state.vehicles.length);
-                    // We don't render yet, we wait for shared vehicles too
                 });
 
                 const unsubscribeShared = sharedQuery.onSnapshot(sharedSnapshot => {
-                    console.log("DEPURACIÓN: Snapshot de vehículos compartidos recibido.");
                     sharedSnapshot.forEach(doc => {
-                        // Avoid duplicates
                         if (!state.vehicles.some(v => v.id === doc.id)) {
                             state.vehicles.push({ id: doc.id, ...doc.data() });
                         }
                     });
-                    console.log("DEPURACIÓN: Vehículos compartidos procesados. Total final de vehículos:", state.vehicles.length);
-                    console.log("DEPURACIÓN: Vehículos en el estado:", state.vehicles);
                     setupUsageListener();
-                    render(); // Render after both queries have potentially run
+                    render();
                 });
 
                 state.unsubscribeVehicles = () => {
-                    console.log("DEPURACIÓN: Desuscribiendo listeners de vehículos.");
                     unsubscribeOwned();
                     unsubscribeShared();
                 };
@@ -305,20 +292,16 @@
             const setupUsageListener = () => {
                 if (state.unsubscribeRecords) state.unsubscribeRecords();
                 if (state.vehicles.length === 0) {
-                    console.log("DEPURACIÓN: No hay vehículos, limpiando registros de uso.");
                     state.usageRecords = [];
                     render();
                     return;
                 }
                 const vehicleIds = state.vehicles.map(v => v.id);
-                console.log("DEPURACIÓN: Configurando listener de registros de uso para los IDs:", vehicleIds);
                 state.unsubscribeRecords = db.collection('usageRecords').where('vehicleId', 'in', vehicleIds).onSnapshot(snapshot => {
-                    console.log("DEPURACIÓN: Snapshot de registros de uso recibido.");
                     state.usageRecords = [];
                     snapshot.forEach(doc => {
                         state.usageRecords.push({ id: doc.id, ...doc.data() });
                     });
-                    console.log("DEPURACIÓN: Registros de uso procesados. Total:", state.usageRecords.length);
                     render();
                 });
             };
@@ -342,15 +325,12 @@
             
             const addVehicle = (name) => {
                 if (!name) return;
-                console.log(`DEPURACIÓN: Intentando añadir vehículo: "${name}" para el usuario ${state.user.uid}`);
-                db.collection('vehicles').add({
+                const userId = state.user.uid;
+                // Usamos el UID del usuario como el ID del documento para que coincida con la regla de seguridad
+                db.collection('vehicles').doc(userId).set({
                     name: name,
-                    ownerId: state.user.uid,
+                    ownerId: userId,
                     sharedWith: []
-                }).then(docRef => {
-                    console.log(`DEPURACIÓN: Vehículo guardado con éxito. ID: ${docRef.id}`);
-                }).catch(error => {
-                    console.error("DEPURACIÓN: Error al guardar vehículo:", error);
                 });
             };
 

@@ -63,7 +63,6 @@
         .vehicle-name { font-weight: bold; font-size: 1.1rem; }
         .vehicle-counter { font-size: 1.2rem; font-weight: bold; color: var(--secondary-color); }
         .vehicle-counter.limit-reached { color: var(--accent-color); animation: pulse 1.5s infinite; }
-        /* CORRECCIÓN: Añadida la llave de cierre que faltaba */
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
         /* --- Vehicle Detail --- */
@@ -100,7 +99,6 @@
 
         /* --- Alert Box --- */
         .alert-box { position: fixed; top: 80px; right: 20px; background-color: var(--accent-color); color: white; padding: 1rem 1.5rem; border-radius: 5px; box-shadow: var(--shadow-hover); z-index: 2000; display: none; animation: slideInRight 0.5s; }
-        /* CORRECCIÓN: Añadida la llave de cierre que faltaba */
         @keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }
     </style>
     <!-- Firebase SDKs -->
@@ -178,7 +176,7 @@
             </div>
             <div class="modal-body" id="modal-body"></div>
         </div>
-    </div> <!-- CORRECCIÓN PRINCIPAL: Añadida esta etiqueta </div> que faltaba y causaba el error -->
+    </div>
 
     <!-- Alert Box -->
     <div id="alert-box" class="alert-box"></div>
@@ -258,6 +256,7 @@
                 render();
             });
 
+            // CORRECCIÓN PROBLEMA 2: Reestructuración para evitar la condición de carrera
             const setupDataListeners = () => {
                 if (state.unsubscribeVehicles) state.unsubscribeVehicles();
                 if (state.unsubscribeRecords) state.unsubscribeRecords();
@@ -265,28 +264,37 @@
                 const userEmail = state.user.email;
                 const userId = state.user.uid;
 
+                // Variables locales para almacenar los resultados de cada consulta
+                let ownedVehicles = [];
+                let sharedVehicles = [];
+
+                // Función para combinar los resultados y actualizar el estado
+                const combineAndRender = () => {
+                    const combined = [...ownedVehicles, ...sharedVehicles].filter((vehicle, index, self) =>
+                        index === self.findIndex((v) => v.id === vehicle.id)
+                    );
+                    state.vehicles = combined;
+                    setupUsageListener();
+                    render();
+                };
+
                 const ownedQuery = db.collection('vehicles').where('ownerId', '==', userId);
                 const sharedQuery = db.collection('vehicles').where('sharedWith', 'array-contains', userEmail);
 
                 const unsubscribeOwned = ownedQuery.onSnapshot(ownedSnapshot => {
-                    state.vehicles = [];
+                    ownedVehicles = [];
                     ownedSnapshot.forEach(doc => {
-                        state.vehicles.push({ id: doc.id, ...doc.data() });
+                        ownedVehicles.push({ id: doc.id, ...doc.data() });
                     });
-                    // CORRECCIÓN: Mover las llamadas a render aquí para que se actualice la UI al cambiar los vehículos propios.
-                    setupUsageListener();
-                    render();
+                    combineAndRender();
                 });
 
                 const unsubscribeShared = sharedQuery.onSnapshot(sharedSnapshot => {
+                    sharedVehicles = [];
                     sharedSnapshot.forEach(doc => {
-                        if (!state.vehicles.some(v => v.id === doc.id)) {
-                            state.vehicles.push({ id: doc.id, ...doc.data() });
-                        }
+                        sharedVehicles.push({ id: doc.id, ...doc.data() });
                     });
-                    // CORRECCIÓN: Asegurarse de que también se renderice aquí.
-                    setupUsageListener();
-                    render();
+                    combineAndRender();
                 });
 
                 state.unsubscribeVehicles = () => {
@@ -317,7 +325,6 @@
                 const email = emailInput.value.trim();
                 const password = passwordInput.value.trim();
                 if (!email || !password) { showAuthError("Por favor, completa todos los campos."); return; }
-                // CORRECCIÓN: Añadido .catch() para manejar errores de registro.
                 auth.createUserWithEmailAndPassword(email, password).catch(error => showAuthError(error.message));
             };
 
@@ -325,7 +332,6 @@
                 const email = emailInput.value.trim();
                 const password = passwordInput.value.trim();
                 if (!email || !password) { showAuthError("Por favor, completa todos los campos."); return; }
-                // CORRECCIÓN: Añadido .catch() para manejar errores de inicio de sesión.
                 auth.signInWithEmailAndPassword(email, password).catch(error => showAuthError(error.message));
             };
 
@@ -334,7 +340,6 @@
             const addVehicle = (name) => {
                 if (!name) return;
                 const userId = state.user.uid;
-                // CORRECCIÓN: Cambiado .doc(userId).set() por .add() para permitir múltiples vehículos por usuario.
                 db.collection('vehicles').add({
                     name: name,
                     ownerId: userId,
@@ -349,7 +354,6 @@
                     showAlert('Ya existe un registro de uso para ese día en este vehículo.');
                     return false;
                 }
-                // CORRECCIÓN: Añadido .catch() para manejar errores al marcar uso.
                 db.collection('usageRecords').add({
                     vehicleId: vehicleId,
                     date: firebase.firestore.Timestamp.fromDate(date),
@@ -362,7 +366,6 @@
 
             const deleteUsageRecord = (recordId) => {
                 if (confirm('¿Estás seguro de que quieres eliminar este día?')) {
-                    // CORRECCIÓN: Añadido .catch() para manejar errores al borrar.
                     db.collection('usageRecords').doc(recordId).delete().catch(error => {
                         showAlert('Error al eliminar el registro: ' + error.message);
                     });
@@ -371,9 +374,9 @@
 
             // CORRECCIÓN PROBLEMA 1: Añadidos logs para depurar la función de compartir.
             const shareVehicle = (vehicleId, targetEmail) => {
-                console.log(`Intentando compartir con: ${targetEmail}`); // Log para depuración
+                console.log(`Intentando compartir con: ${targetEmail}`);
                 auth.fetchSignInMethodsForEmail(targetEmail).then(methods => {
-                    console.log(`Métodos encontrados para ${targetEmail}:`, methods); // <-- ESTA ES LA LÍNEA CLAVE
+                    console.log(`Métodos encontrados para ${targetEmail}:`, methods);
                     if (methods.length === 0) {
                         showAlert('No hay ningún usuario registrado con ese correo electrónico.');
                         return;
@@ -515,20 +518,15 @@
                 const options = state.vehicles.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
                 openModal('Usar Vehículo en Fecha Pasada', `<p>Selecciona el vehículo y la fecha:</p><select id="use-date-select">${options}</select><input type="date" id="use-date-input"><button id="confirm-use-date">Marcar Uso</button>`);
                 
-                // CORRECCIÓN FINAL: Estructura if-else corregida en el botón de usar fecha pasada
                 document.getElementById('confirm-use-date').addEventListener('click', () => {
                     const vehicleId = document.getElementById('use-date-select').value;
                     const dateStr = document.getElementById('use-date-input').value;
                     
                     if (dateStr) {
-                        // Si se introdujo una fecha, intentamos marcar el uso
                         if (markUsage(vehicleId, new Date(dateStr))) {
-                            // Si markUsage() devuelve true (éxito), cerramos el modal
                             closeModal();
                         }
-                        // Si markUsage() devuelve false (ej. día ya registrado), la función ya muestra una alerta.
                     } else {
-                        // Si el campo de fecha estaba vacío, mostramos esta alerta
                         alert("Por favor, selecciona una fecha.");
                     }
                 });

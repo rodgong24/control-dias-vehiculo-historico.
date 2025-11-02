@@ -260,21 +260,25 @@
                 if (state.unsubscribeVehicles) state.unsubscribeVehicles();
                 if (state.unsubscribeRecords) state.unsubscribeRecords();
 
-                const vehiclesQuery = db.collection('vehicles').where('ownerId', '==', state.user.uid);
-                const sharedVehiclesQuery = db.collection('vehicles').where('sharedWith', 'array-contains', state.user.uid);
-                
+                const userEmail = state.user.email; // Get the user's email to query shared vehicles
+                const userId = state.user.uid;       // Get the user's UID to query owned vehicles
+
                 // Listen to owned vehicles
-                const unsubscribeOwned = db.collection('vehicles').where('ownerId', '==', state.user.uid).onSnapshot(snapshot => {
+                const unsubscribeOwned = db.collection('vehicles').where('ownerId', '==', userId).onSnapshot(ownedSnapshot => {
                     state.vehicles = [];
-                    snapshot.forEach(doc => {
+                    ownedSnapshot.forEach(doc => {
                         state.vehicles.push({ id: doc.id, ...doc.data() });
                     });
                     // Listen to shared vehicles
-                    const unsubscribeShared = db.collection('vehicles').where('sharedWith', 'array-contains', state.user.uid).onSnapshot(snapshot => {
-                        snapshot.forEach(doc => {
-                            state.vehicles.push({ id: doc.id, ...doc.data() });
+                    const unsubscribeShared = db.collection('vehicles').where('sharedWith', 'array-contains', userEmail).onSnapshot(sharedSnapshot => {
+                        sharedSnapshot.forEach(doc => {
+                            // Avoid adding duplicates if a vehicle is somehow both owned and shared with the same user
+                            if (!state.vehicles.some(v => v.id === doc.id)) {
+                                state.vehicles.push({ id: doc.id, ...doc.data() });
+                            }
                         });
                         setupUsageListener();
+                        render();
                     });
                     state.unsubscribeVehicles = () => { unsubscribeOwned(); unsubscribeShared(); };
                 });
@@ -288,7 +292,6 @@
                     return;
                 }
                 const vehicleIds = state.vehicles.map(v => v.id);
-                const recordsQuery = db.collection('usageRecords').where('vehicleId', 'in', vehicleIds);
                 state.unsubscribeRecords = db.collection('usageRecords').where('vehicleId', 'in', vehicleIds).onSnapshot(snapshot => {
                     state.usageRecords = [];
                     snapshot.forEach(doc => {

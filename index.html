@@ -344,41 +344,38 @@
                 });
             };
 
-           // FUNCIÓN MODIFICADA PARA PROBAR EL TIMESTAMP
-const markUsage = (vehicleId, date) => {
-    const dateStr = new Date(date).toISOString().split('T')[0];
-    const existingRecord = state.usageRecords.find(r => r.vehicleId === vehicleId && r.date.toDate().toISOString().split('T')[0] === dateStr);
-    if (existingRecord) {
-        showAlert('Ya existe un registro de uso para ese día en este vehículo.');
-        return false;
-    }
+            // --- FUNCIÓN AUXILIAR PARA MANEJAR FECHAS ---
+            const toDateObject = (dateField) => {
+                if (dateField && typeof dateField.toDate === 'function') {
+                    return dateField.toDate();
+                }
+                if (typeof dateField === 'string') {
+                    return new Date(dateField);
+                }
+                return null;
+            };
 
-    // --- INICIO DE LOS LOGS DE DEPURACIÓN ---
-    console.log("[DEBUG markUsage] Intentando guardar uso.");
-    console.log("[DEBUG markUsage] Usuario actual (UID):", state.user.uid);
-    console.log("[DEBUG markUsage] vehicleId recibido:", vehicleId);
-    console.log("[DEBUG markUsage] Lista de vehículos en el estado:", state.vehicles);
-    
-    const vehicleBeingUsed = state.vehicles.find(v => v.id === vehicleId);
-    if (vehicleBeingUsed) {
-        console.log("[DEBUG markUsage] Vehículo encontrado en el estado:", vehicleBeingUsed);
-        console.log("[DEBUG markUsage] Propietario del vehículo (UID):", vehicleBeingUsed.ownerId);
-    } else {
-        console.error("[ERROR markUsage] ¡El vehicleId no corresponde a ningún vehículo en el estado local!");
-    }
-    // --- FIN DE LOS LOGS ---
+            const markUsage = (vehicleId, date) => {
+                const dateStr = new Date(date).toISOString().split('T')[0];
+                const existingRecord = state.usageRecords.find(r => {
+                    const recordDate = toDateObject(r.date);
+                    return r.vehicleId === vehicleId && recordDate && recordDate.toISOString().split('T')[0] === dateStr;
+                });
+                if (existingRecord) {
+                    showAlert('Ya existe un registro de uso para ese día en este vehículo.');
+                    return false;
+                }
 
-    db.collection('usageRecords').add({
-        vehicleId: vehicleId,
-        // Línea original correcta
-date: firebase.firestore.Timestamp.fromDate(date),
-        usedBy: state.user.email
-    }).catch(error => {
-        console.error("[ERROR markUsage] Error de Firestore:", error);
-        showAlert('Error al guardar el uso: ' + error.message);
-    });
-    return true;
-};
+                db.collection('usageRecords').add({
+                    vehicleId: vehicleId,
+                    date: firebase.firestore.Timestamp.fromDate(date),
+                    usedBy: state.user.email
+                }).catch(error => {
+                    console.error("[ERROR markUsage] Error de Firestore:", error);
+                    showAlert('Error al guardar el uso: ' + error.message);
+                });
+                return true;
+            };
 
             const deleteUsageRecord = (recordId) => {
                 if (confirm('¿Estás seguro de que quieres eliminar este día?')) {
@@ -463,11 +460,11 @@ date: firebase.firestore.Timestamp.fromDate(date),
                 
                 usageList.innerHTML = '';
                 if (records.length === 0) { usageList.innerHTML = '<li>No hay registros de uso para este vehículo.</li>'; return; }
-                records.sort((a,b) => b.date.toDate() - a.date.toDate());
+                records.sort((a,b) => toDateObject(b.date) - toDateObject(a.date));
                 records.forEach(record => {
                     const li = document.createElement('li');
                     li.className = 'usage-item';
-                    const date = record.date.toDate().toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                    const date = toDateObject(record.date).toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
                     li.innerHTML = `<span>${date} - <strong>${record.usedBy}</strong></span><button class="delete-btn" data-record-id="${record.id}">🗑️</button>`;
                     usageList.appendChild(li);
                 });
@@ -481,7 +478,7 @@ date: firebase.firestore.Timestamp.fromDate(date),
                     const totalDays = allRecords.length;
                     const yearlyBreakdown = {};
                     allRecords.forEach(record => {
-                        const year = record.date.toDate().getFullYear();
+                        const year = toDateObject(record.date).getFullYear();
                         yearlyBreakdown[year] = (yearlyBreakdown[year] || 0) + 1;
                     });
                     const summaryDiv = document.createElement('div');
@@ -497,7 +494,13 @@ date: firebase.firestore.Timestamp.fromDate(date),
             
             // --- LOGIC HELPERS ---
             const selectVehicle = (id) => { state.selectedVehicleId = id; render(); };
-            const getUsageCount = (vehicleId, year = null) => { const targetYear = year || new Date().getFullYear(); return state.usageRecords.filter(r => r.vehicleId === vehicleId && r.date.toDate().getFullYear() === targetYear).length; };
+            const getUsageCount = (vehicleId, year = null) => { 
+                const targetYear = year || new Date().getFullYear(); 
+                return state.usageRecords.filter(r => {
+                    const recordDate = toDateObject(r.date);
+                    return r.vehicleId === vehicleId && recordDate && recordDate.getFullYear() === targetYear;
+                }).length; 
+            };
             const getUsageRecords = (vehicleId) => { return state.usageRecords.filter(r => r.vehicleId === vehicleId); };
             
             // --- MODAL LOGIC ---

@@ -370,7 +370,8 @@ const markUsage = (vehicleId, date) => {
 
     db.collection('usageRecords').add({
         vehicleId: vehicleId,
-        date: new Date(date).toISOString(), // <-- CAMBIO CLAVE AQUÍ
+        // Línea original correcta
+date: firebase.firestore.Timestamp.fromDate(date),
         usedBy: state.user.email
     }).catch(error => {
         console.error("[ERROR markUsage] Error de Firestore:", error);

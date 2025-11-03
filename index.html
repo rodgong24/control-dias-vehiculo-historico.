@@ -344,40 +344,40 @@
                 });
             };
 
-            // FUNCIÓN MODIFICADA CON LOGS DE DEPURACIÓN
-            const markUsage = (vehicleId, date) => {
-                const dateStr = new Date(date).toISOString().split('T')[0];
-                const existingRecord = state.usageRecords.find(r => r.vehicleId === vehicleId && r.date.toDate().toISOString().split('T')[0] === dateStr);
-                if (existingRecord) {
-                    showAlert('Ya existe un registro de uso para ese día en este vehículo.');
-                    return false;
-                }
+           // FUNCIÓN MODIFICADA PARA PROBAR EL TIMESTAMP
+const markUsage = (vehicleId, date) => {
+    const dateStr = new Date(date).toISOString().split('T')[0];
+    const existingRecord = state.usageRecords.find(r => r.vehicleId === vehicleId && r.date.toDate().toISOString().split('T')[0] === dateStr);
+    if (existingRecord) {
+        showAlert('Ya existe un registro de uso para ese día en este vehículo.');
+        return false;
+    }
 
-                // --- INICIO DE LOS LOGS DE DEPURACIÓN ---
-                console.log("[DEBUG markUsage] Intentando guardar uso.");
-                console.log("[DEBUG markUsage] Usuario actual (UID):", state.user.uid);
-                console.log("[DEBUG markUsage] vehicleId recibido:", vehicleId);
-                console.log("[DEBUG markUsage] Lista de vehículos en el estado:", state.vehicles);
-                
-                const vehicleBeingUsed = state.vehicles.find(v => v.id === vehicleId);
-                if (vehicleBeingUsed) {
-                    console.log("[DEBUG markUsage] Vehículo encontrado en el estado:", vehicleBeingUsed);
-                    console.log("[DEBUG markUsage] Propietario del vehículo (UID):", vehicleBeingUsed.ownerId);
-                } else {
-                    console.error("[ERROR markUsage] ¡El vehicleId no corresponde a ningún vehículo en el estado local!");
-                }
-                // --- FIN DE LOS LOGS ---
+    // --- INICIO DE LOS LOGS DE DEPURACIÓN ---
+    console.log("[DEBUG markUsage] Intentando guardar uso.");
+    console.log("[DEBUG markUsage] Usuario actual (UID):", state.user.uid);
+    console.log("[DEBUG markUsage] vehicleId recibido:", vehicleId);
+    console.log("[DEBUG markUsage] Lista de vehículos en el estado:", state.vehicles);
+    
+    const vehicleBeingUsed = state.vehicles.find(v => v.id === vehicleId);
+    if (vehicleBeingUsed) {
+        console.log("[DEBUG markUsage] Vehículo encontrado en el estado:", vehicleBeingUsed);
+        console.log("[DEBUG markUsage] Propietario del vehículo (UID):", vehicleBeingUsed.ownerId);
+    } else {
+        console.error("[ERROR markUsage] ¡El vehicleId no corresponde a ningún vehículo en el estado local!");
+    }
+    // --- FIN DE LOS LOGS ---
 
-                db.collection('usageRecords').add({
-                    vehicleId: vehicleId,
-                    date: firebase.firestore.Timestamp.fromDate(date),
-                    usedBy: state.user.email
-                }).catch(error => {
-                    console.error("[ERROR markUsage] Error de Firestore:", error);
-                    showAlert('Error al guardar el uso: ' + error.message);
-                });
-                return true;
-            };
+    db.collection('usageRecords').add({
+        vehicleId: vehicleId,
+        date: new Date(date).toISOString(), // <-- CAMBIO CLAVE AQUÍ
+        usedBy: state.user.email
+    }).catch(error => {
+        console.error("[ERROR markUsage] Error de Firestore:", error);
+        showAlert('Error al guardar el uso: ' + error.message);
+    });
+    return true;
+};
 
             const deleteUsageRecord = (recordId) => {
                 if (confirm('¿Estás seguro de que quieres eliminar este día?')) {

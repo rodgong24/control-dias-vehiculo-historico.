@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Meta Tags para evitar problemas de caché -->
-    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, post-check=0, pre-check=0, pre-check=0, pre-check=0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, post-check=0, pre-check=0, pre-check=0, pre-check=0, pre-check=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Control Días Vehículo Histórico</title>
@@ -276,14 +276,13 @@
                     render();
                 };
 
-                const ownedQuery = db.collection('vehicles').where('ownerId', '==', userId);
-                const sharedQuery = db.collection('vehicles').where('sharedWith', 'array-contains', userEmail);
+                const unsubscribeOwned = ownedQuery = db.collection('vehicles').where('ownerId', '==', userId);
+                const unsubscribeShared = db.collection('vehicles').where('sharedWith', 'array-contains', userEmail);
 
                 const unsubscribeOwned = ownedQuery.onSnapshot(ownedSnapshot => {
                     ownedVehicles = [];
                     ownedSnapshot.forEach(doc => {
                         ownedVehicles.push({ id: doc.id, ...doc.data() });
-                    });
                     combineAndRender();
                 });
 
@@ -291,7 +290,6 @@
                     sharedVehicles = [];
                     sharedSnapshot.forEach(doc => {
                         sharedVehicles.push({ id: doc.id, ...doc.data() });
-                    });
                     combineAndRender();
                 });
 
@@ -313,9 +311,9 @@
                     state.usageRecords = [];
                     snapshot.forEach(doc => {
                         state.usageRecords.push({ id: doc.id, ...doc.data() });
-                    });
                     render();
                 });
+            };
             };
 
             // --- ACTION HANDLERS ---
@@ -345,7 +343,7 @@
                 });
             };
 
-            // --- FUNCIÓN AUXILIAR PARA MANEJAR FECHAS ---
+            // --- FUNCIÓNION AUXILIAR PARA MANEJAR FECHAS ---
             const toDateObject = (dateField) => {
                 if (dateField && typeof dateField.toDate === 'function') {
                     return dateField.toDate();
@@ -443,8 +441,8 @@
             const showApp = () => { authScreen.style.display = 'none'; appScreen.style.display = 'block'; userInfo.style.display = 'flex'; actionButtons.style.display = 'flex'; userNameDisplay.textContent = state.user.email; };
             
             const renderTabs = () => {
-                tabButtons.forEach(button => button.classList.toggle('active', button.dataset.tab === state.activeTab));
-                tabContents.forEach(content => content.classList.toggle('active', content.id === state.activeTab));
+                tabButtons.forEach(button => button.classList.toggle('active', button.dataset.tab === state.activeTab);
+                tabContents.forEach(content => content.classList.toggle('active', content.id === state.activeTab);
                 if (state.activeTab === 'vehicles-view') { renderVehicleList(); renderVehicleDetail(); }
                 else if (state.activeTab === 'historical-view') { renderHistoricalView(); }
             };
@@ -458,7 +456,7 @@
                     const li = document.createElement('li');
                     li.className = 'vehicle-item';
                     if (vehicle.id === state.selectedVehicleId) li.classList.add('selected');
-                    li.innerHTML = `<span class="vehicle-name">${vehicle.name} ${!isOwner ? '👥' : ''}</span><span class="vehicle-counter ${count >= 90 ? 'limit-reached' : ''}">${count} días</span>`;
+                    li.innerHTML = `<span class="vehicle-name">${vehicle.name} ${!isOwner ? '' : '👥'}</span><span class="vehicle-counter ${count >= 90 ? 'limit-reached' : ''}">${count} días</span>`;
                     li.addEventListener('click', () => selectVehicle(vehicle.id));
                     vehicleList.appendChild(li);
                 });
@@ -496,12 +494,12 @@
                     const yearlyBreakdown = {};
                     allRecords.forEach(record => {
                         const year = toDateObject(record.date).getFullYear();
-                        yearlyBreakdown[year] = (yearlyBreakdown[year] || 0) + 1;
+                        yearlyBreakdown[year] = (yearlyBreakdown[year] = (yearlyBreakdown[year] || 0) + 1;
                     });
                     const summaryDiv = document.createElement('div');
                     summaryDiv.className = 'historical-summary';
                     let breakdownHtml = '';
-                    Object.keys(yearlyBreakdown).sort((a,b) => b-a).forEach(year => {
+                    Object.keys(yearlyBreakdown.sort((a,b) => b-a).forEach(year => {
                         breakdownHtml += `<span class="year-breakdown">${year}: ${yearlyBreakdown[year]} días</span>`;
                     });
                     summaryDiv.innerHTML = `<h3>${vehicle.name}</h3><p><strong>Total de días usados:</strong> ${totalDays}</p>${breakdownHtml}`;
@@ -572,13 +570,12 @@
                 document.getElementById('confirm-use-date').addEventListener('click', () => {
                     const vehicleId = document.getElementById('use-date-select').value;
                     const dateStr = document.getElementById('use-date-input').value;
-                    
-                    if (dateStr) {
-                        if (markUsage(vehicleId, new Date(dateStr))) {
+                    if(dateStr) {
+                        if (markUsage(vehicleId, new Date(dateStr)) {
                             closeModal();
+                        } else {
+                            alert("Por favor, selecciona una fecha.");
                         }
-                    } else {
-                        alert("Por favor, selecciona una fecha.");
                     }
                 });
             });
@@ -587,7 +584,7 @@
                 if (!state.selectedVehicleId) { alert("Por favor, selecciona un vehículo para compartir."); return; }
                 const vehicle = state.vehicles.find(v => v.id === state.selectedVehicleId);
                 if (vehicle.ownerId !== state.user.uid) { alert("Solo el propietario del vehículo puede compartirlo."); return; }
-                openModal(`Compartir "${vehicle.name}"`, `<p>Introduce el correo electrónico del usuario:</p><input type="email" id="share-email-input" placeholder="correo@ejemplo.com"><button id="confirm-share">Compartir</button>`);
+                openModal(`Compartir "${vehicle.name}", `<p>Introduce el correo electrónico del usuario:</p><input type="email" id="share-email-input" placeholder="correo@ejemplo.com"><button id="confirm-share">Compartir</button>`);
                 document.getElementById('confirm-share').addEventListener('click', () => {
                     const targetEmail = document.getElementById('share-email-input').value.trim();
                     if(targetEmail) { shareVehicle(state.selectedVehicleId, targetEmail); closeModal(); }

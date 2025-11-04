@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <!-- Meta Tags para evitar problemas de caché -->
-    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, post-check=0, pre-check=0, pre-check=0">
+    <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, post-check=0, pre-check=0, pre-check=0, pre-check=0">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>Control Días Vehículo Histórico</title>
@@ -358,6 +358,26 @@
 
             // --- FUNCIÓN markUsage DEFINITIVA Y OPTIMIZADA ---
             const markUsage = (vehicleId, date) => {
+                console.log(`[DEPURACIÓN] markUsage: Intentando guardar para vehicleId: ${vehicleId}`);
+                
+                const vehicle = state.vehicles.find(v => v.id === vehicleId);
+                if (!vehicle) {
+                    console.error(`[ERROR markUsage] Vehículo con ID ${vehicleId} no encontrado en el estado local.`);
+                    showAlert('Error: No se pudo encontrar el vehículo seleccionado. Intenta recargar la página.');
+                    return false;
+                }
+
+                const isOwner = vehicle.ownerId === state.user.uid;
+                const isShared = vehicle.sharedWith && vehicle.sharedWith.includes(state.user.email);
+
+                console.log(`[DEPURACIÓN] markUsage: Permisos -> Propietario: ${isOwner}, Compartido: ${isShared}`);
+
+                if (!isOwner && !isShared) {
+                    console.error(`[ERROR markUsage] Permiso denegado. Usuario no es propietario ni está en la lista de compartidos para el vehículo ${vehicle.name}.`);
+                    showAlert('No tienes permisos para añadir días a este vehículo.');
+                    return false;
+                }
+
                 const dateStr = new Date(date).toISOString().split('T')[0];
                 const existingRecord = state.usageRecords.find(r => {
                     const recordDate = toDateObject(r.date);
@@ -368,17 +388,10 @@
                     return false;
                 }
 
-                const vehicle = state.vehicles.find(v => v.id === vehicleId);
-                if (!vehicle) {
-                    showAlert('Error: No se pudo encontrar el vehículo seleccionado. Intenta recargar la página.');
-                    return false;
-                }
-
-                // --- CAMBIO CLAVE: Enviar sharedWith junto con el registro ---
                 db.collection('usageRecords').add({
                     vehicleId: vehicleId,
                     ownerId: vehicle.ownerId,
-                    sharedWith: vehicle.sharedWith, // <-- AÑADIDO
+                    sharedWith: vehicle.sharedWith,
                     date: firebase.firestore.Timestamp.fromDate(date),
                     usedBy: state.user.email
                 }).catch(error => {

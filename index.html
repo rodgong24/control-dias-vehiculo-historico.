@@ -356,7 +356,7 @@
                 return null;
             };
 
-            // --- FUNCIÓN markUsage LIMPIA Y DEFINITIVA ---
+            // --- FUNCIÓN markUsage DEFINITIVA Y OPTIMIZADA ---
             const markUsage = (vehicleId, date) => {
                 const dateStr = new Date(date).toISOString().split('T')[0];
                 const existingRecord = state.usageRecords.find(r => {
@@ -374,9 +374,11 @@
                     return false;
                 }
 
+                // --- CAMBIO CLAVE: Enviar sharedWith junto con el registro ---
                 db.collection('usageRecords').add({
                     vehicleId: vehicleId,
                     ownerId: vehicle.ownerId,
+                    sharedWith: vehicle.sharedWith, // <-- AÑADIDO
                     date: firebase.firestore.Timestamp.fromDate(date),
                     usedBy: state.user.email
                 }).catch(error => {

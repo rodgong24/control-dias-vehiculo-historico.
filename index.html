@@ -355,6 +355,7 @@
                 return null;
             };
 
+            // --- FUNCIÓN MODIFICADA CON LA SOLUCIÓN DEFINITIVA ---
             const markUsage = (vehicleId, date) => {
                 const dateStr = new Date(date).toISOString().split('T')[0];
                 const existingRecord = state.usageRecords.find(r => {
@@ -366,8 +367,16 @@
                     return false;
                 }
 
+                // --- CAMBIO CLAVE: Encontrar el vehículo en el estado local para obtener su ownerId ---
+                const vehicle = state.vehicles.find(v => v.id === vehicleId);
+                if (!vehicle) {
+                    showAlert('Error: No se pudo encontrar el vehículo seleccionado.');
+                    return false;
+                }
+
                 db.collection('usageRecords').add({
                     vehicleId: vehicleId,
+                    ownerId: vehicle.ownerId, // <-- AÑADIMOS EL ownerId AQUÍ
                     date: firebase.firestore.Timestamp.fromDate(date),
                     usedBy: state.user.email
                 }).catch(error => {

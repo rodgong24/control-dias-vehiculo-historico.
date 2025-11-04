@@ -356,40 +356,29 @@
                 return null;
             };
 
-            // --- FUNCIÓN MODIFICADA CON LOGS DE DEPURACIÓN ---
+            // --- FUNCIÓN markUsage LIMPIA Y DEFINITIVA ---
             const markUsage = (vehicleId, date) => {
-                console.log("[DEPURACIÓN markUsage] INICIO. vehicleId:", vehicleId, "date:", date);
-                
                 const dateStr = new Date(date).toISOString().split('T')[0];
                 const existingRecord = state.usageRecords.find(r => {
                     const recordDate = toDateObject(r.date);
                     return r.vehicleId === vehicleId && recordDate && recordDate.toISOString().split('T')[0] === dateStr;
                 });
                 if (existingRecord) {
-                    console.log("[DEPURACIÓN markUsage] Día ya registrado. Abortando.");
                     showAlert('Ya existe un registro de uso para ese día en este vehículo.');
                     return false;
                 }
 
-                console.log("[DEPURACIÓN markUsage] Buscando vehículo en el estado local. state.vehicles:", state.vehicles);
                 const vehicle = state.vehicles.find(v => v.id === vehicleId);
                 if (!vehicle) {
-                    console.error("[DEPURACIÓN markUsage] ERROR: Vehículo no encontrado en el estado local.");
                     showAlert('Error: No se pudo encontrar el vehículo seleccionado. Intenta recargar la página.');
                     return false;
                 }
-                console.log("[DEPURACIÓN markUsage] Vehículo encontrado:", vehicle);
 
-                const dataToSave = {
+                db.collection('usageRecords').add({
                     vehicleId: vehicleId,
                     ownerId: vehicle.ownerId,
                     date: firebase.firestore.Timestamp.fromDate(date),
                     usedBy: state.user.email
-                };
-                console.log("[DEPURACIÓN markUsage] Datos a guardar en Firestore:", dataToSave);
-
-                db.collection('usageRecords').add(dataToSave).then(docRef => {
-                    console.log("[DEPURACIÓN markUsage] ÉXITO: Documento escrito con ID:", docRef.id);
                 }).catch(error => {
                     console.error("[ERROR markUsage] Error de Firestore:", error);
                     showAlert('Error al guardar el uso: ' + error.message);
@@ -405,34 +394,21 @@
                 }
             };
 
+            // --- FUNCIÓN shareVehicle MEJORADA ---
             const shareVehicle = (vehicleId, targetEmail) => {
                 if (!targetEmail) {
                     showAlert('Por favor, introduce un correo electrónico.');
                     return;
                 }
-                console.log(`[DEBUG] Intentando compartir con: ${targetEmail}`);
-                console.log(`[DEBUG] Proyecto Firebase actual: ${firebaseConfig.projectId}`);
                 
-                auth.fetchSignInMethodsForEmail(targetEmail).then(methods => {
-                    console.log(`[DEBUG] Métodos encontrados para ${targetEmail}:`, methods);
-                    
-                    if (methods && methods.length > 0) {
-                        const vehicleRef = db.collection('vehicles').doc(vehicleId);
-                        vehicleRef.update({
-                            sharedWith: firebase.firestore.FieldValue.arrayUnion(targetEmail)
-                        }).then(() => {
-                            showAlert(`Vehículo compartido con ${targetEmail}.`);
-                        }).catch(error => {
-                            console.error("[ERROR] Error al compartir:", error);
-                            showAlert('Error al compartir el vehículo: ' + error.message);
-                        });
-                    } else {
-                        console.error(`[ERROR] No se encontraron métodos para ${targetEmail}. ¿El usuario está registrado en el proyecto "${firebaseConfig.projectId}"?`);
-                        showAlert(`Error: No se encontró al usuario "${targetEmail}" en este proyecto. Verifica que el correo sea correcto y que el usuario esté registrado en este proyecto de Firebase.`);
-                    }
+                const vehicleRef = db.collection('vehicles').doc(vehicleId);
+                vehicleRef.update({
+                    sharedWith: firebase.firestore.FieldValue.arrayUnion(targetEmail)
+                }).then(() => {
+                    showAlert(`Vehículo compartido con ${targetEmail}.`);
                 }).catch(error => {
-                    console.error("[ERROR] Error al verificar el correo:", error);
-                    showAlert('Error al verificar el correo electrónico: ' + error.message);
+                    console.error("[ERROR] Error al compartir:", error);
+                    showAlert('Error al compartir el vehículo: ' + error.message);
                 });
             };
 
@@ -566,7 +542,6 @@
                 openModal('Usar Vehículo Hoy', `<p>Selecciona el vehículo que has usado hoy:</p><select id="use-today-select">${options}</select><button id="confirm-use-today">Marcar Uso</button>`);
                 document.getElementById('confirm-use-today').addEventListener('click', () => {
                     const vehicleId = document.getElementById('use-today-select').value;
-                    console.log("[DEPURACIÓN] Botón 'Marcar Uso' clickeado. vehicleId:", vehicleId);
                     if (markUsage(vehicleId, new Date())) closeModal();
                 });
             });

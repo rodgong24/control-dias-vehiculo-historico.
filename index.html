@@ -381,6 +381,7 @@
                     sharedWith: vehicle.sharedWith, // <-- AÑADIDO
                     date: firebase.firestore.Timestamp.fromDate(date),
                     usedBy: state.user.email
+                    createdByUid: state.user.uid // <-- ¡AÑADE ESTA LÍNEA!
                 }).catch(error => {
                     console.error("[ERROR markUsage] Error de Firestore:", error);
                     showAlert('Error al guardar el uso: ' + error.message);
